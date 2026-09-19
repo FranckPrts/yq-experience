@@ -1,0 +1,41 @@
+<svg width="347" height="348" viewBox="0 0 347 348" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3_142)">
+<rect width="347" height="348" fill="black"/>
+<circle cx="85.5" cy="106.5" r="143.5" fill="url(#paint0_radial_3_142)"/>
+<circle cx="250.5" cy="255.5" r="139.5" fill="url(#paint1_radial_3_142)" style="mix-blend-mode:plus-lighter"/>
+<foreignObject x="-30" y="-30" width="407" height="408"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(15px);clip-path:url(#bgblur_1_3_142_clip_path);height:100%;width:100%"></div></foreignObject><rect data-figma-bg-blur-radius="30" width="347" height="348" fill="#6A6A6A" fill-opacity="0.4"/>
+<g filter="url(#filter1_n_3_142)">
+<rect width="347" height="348" fill="#AAAAAA" fill-opacity="0.2" style="mix-blend-mode:soft-light"/>
+</g>
+</g>
+<defs>
+<clipPath id="bgblur_1_3_142_clip_path" transform="translate(30 30)"><rect width="347" height="348"/>
+</clipPath><filter id="filter1_n_3_142" x="0" y="0" width="347" height="348" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feTurbulence type="fractalNoise" baseFrequency="2 2" stitchTiles="stitch" numOctaves="3" result="noise" seed="8343" />
+<feColorMatrix in="noise" type="luminanceToAlpha" result="alphaNoise" />
+<feComponentTransfer in="alphaNoise" result="coloredNoise1">
+<feFuncA type="discrete" tableValues="1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 "/>
+</feComponentTransfer>
+<feComposite operator="in" in2="shape" in="coloredNoise1" result="noise1Clipped" />
+<feFlood flood-color="rgba(0, 0, 0, 0.25)" result="color1Flood" />
+<feComposite operator="in" in2="noise1Clipped" in="color1Flood" result="color1" />
+<feMerge result="effect1_noise_3_142">
+<feMergeNode in="shape" />
+<feMergeNode in="color1" />
+</feMerge>
+</filter>
+<radialGradient id="paint0_radial_3_142" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(85.5 106.5) rotate(90) scale(143.5)">
+<stop stop-color="#FF9A36"/>
+<stop offset="1" stop-color="#FF1C1C"/>
+</radialGradient>
+<radialGradient id="paint1_radial_3_142" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(250.5 255.5) rotate(90) scale(139.5)">
+<stop stop-color="#990E90"/>
+<stop offset="1" stop-color="#3A7CFF"/>
+</radialGradient>
+<clipPath id="clip0_3_142">
+<rect width="347" height="348" fill="white"/>
+</clipPath>
+</defs>
+</svg>
