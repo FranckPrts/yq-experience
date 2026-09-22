@@ -288,3 +288,77 @@ export async function fetchProjectKeys(
 export function projectUrlFor(ref: string): string {
   return `https://${ref}.supabase.co`;
 }
+
+async function apiSend<T>(
+  method: "POST" | "PATCH",
+  path: string,
+  accessToken: string,
+  body: unknown,
+): Promise<T> {
+  const response = await fetch(`${API}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new SupabaseApiError(response.status, detail, path);
+  }
+  // Some endpoints answer 200 with an empty body.
+  const text = await response.text();
+  return (text ? JSON.parse(text) : null) as T;
+}
+
+/**
+ * Runs SQL against the tenant's database. Needs the `database_write` scope,
+ * and is the call most likely to be refused — which is why every caller has a
+ * copy-pasteable fallback to offer.
+ */
+export async function runQuery<T = unknown>(
+  ref: string,
+  accessToken: string,
+  query: string,
+): Promise<T> {
+  return apiSend<T>(
+    "POST",
+    `/projects/${ref}/database/query`,
+    accessToken,
+    { query },
+  );
+}
+
+export type AuthConfig = {
+  external_anonymous_users_enabled?: boolean;
+  rate_limit_anonymous_users?: number;
+};
+
+export async function getAuthConfig(
+  ref: string,
+  accessToken: string,
+): Promise<AuthConfig> {
+  return apiGet<AuthConfig>(`/projects/${ref}/config/auth`, accessToken);
+}
+
+/**
+ * Enables anonymous sign-ins, and optionally raises their per-IP rate limit.
+ *
+ * The limit matters more than it looks: the default is low enough that a room
+ * full of participants behind one conference NAT will hit it, which is exactly
+ * the deployment this platform grew out of.
+ */
+export async function updateAuthConfig(
+  ref: string,
+  accessToken: string,
+  config: AuthConfig,
+): Promise<AuthConfig> {
+  return apiSend<AuthConfig>(
+    "PATCH",
+    `/projects/${ref}/config/auth`,
+    accessToken,
+    config,
+  );
+}

@@ -8,6 +8,8 @@ import {
 } from "@/lib/supabase/management";
 import ProjectNav from "../nav";
 import ConnectionSection, { type ConnectionView } from "./section";
+import ProvisionSection from "./provision-section";
+import { SCHEMA_VERSION, sceneSnippet } from "@/lib/spoke/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +107,11 @@ export default async function DatabasePage({
         select: {
           id: true,
           projectRef: true,
+          projectUrl: true,
+          publishableKey: true,
           provisionedAt: true,
+          schemaVersion: true,
+          anonSignInsEnabled: true,
           secretKeyEnc: true,
           accessTokenEnc: true,
         },
@@ -128,6 +134,29 @@ export default async function DatabasePage({
         view={await connectionView(project.connection)}
         canEdit={access.role === "OWNER"}
       />
+
+      <section className="flex flex-col gap-4 border-t border-paper/10 pt-6">
+        <h2 className="text-xs text-dim">tables &amp; policies</h2>
+        <ProvisionSection
+          slug={slug}
+          canEdit={access.role === "OWNER"}
+          view={{
+            ready: !!project.connection?.projectRef,
+            provisioned: !!project.connection?.provisionedAt,
+            schemaVersion: project.connection?.schemaVersion ?? null,
+            currentVersion: SCHEMA_VERSION,
+            anonEnabled: !!project.connection?.anonSignInsEnabled,
+            sceneSnippet:
+              project.connection?.projectUrl &&
+              project.connection?.publishableKey
+                ? sceneSnippet({
+                    projectUrl: project.connection.projectUrl,
+                    publishableKey: project.connection.publishableKey,
+                  })
+                : null,
+          }}
+        />
+      </section>
     </main>
   );
 }
