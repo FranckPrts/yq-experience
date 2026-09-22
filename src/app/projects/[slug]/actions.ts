@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireProjectRole } from "@/lib/auth/dal";
-import { coerceLexicon, coerceTheme, FONTS } from "@/lib/theme/project-theme";
 
 export type SettingsState = { saved?: boolean; error?: string };
 
@@ -13,36 +12,6 @@ export type SettingsState = { saved?: boolean; error?: string };
  * of a project, but the fields that decide who sees it — its name in a URL, and
  * whether participants can reach it at all — stay with the owner.
  */
-
-export async function saveAppearance(
-  _prev: SettingsState,
-  formData: FormData,
-): Promise<SettingsState> {
-  const slug = String(formData.get("slug") ?? "");
-  const { projectId } = await requireProjectRole(slug, "COLLABORATOR");
-
-  const theme = coerceTheme({
-    void: formData.get("void"),
-    paper: formData.get("paper"),
-    dim: formData.get("dim"),
-    font: formData.get("font"),
-  });
-
-  const lexicon = coerceLexicon({
-    noun: formData.get("noun"),
-    nounPlural: formData.get("nounPlural"),
-  });
-
-  if (!(theme.font in FONTS)) return { error: "Unknown typeface." };
-
-  await db.project.update({
-    where: { id: projectId },
-    data: { theme, lexicon },
-  });
-
-  revalidatePath(`/projects/${slug}`);
-  return { saved: true };
-}
 
 export async function renameProject(
   _prev: SettingsState,

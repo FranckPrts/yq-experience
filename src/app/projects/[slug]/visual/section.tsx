@@ -5,7 +5,7 @@ import {
   promoteScriptVersion,
   uploadScript,
   type UploadState,
-} from "./script-actions";
+} from "./actions";
 
 export type ScriptVersion = {
   version: number;
@@ -49,6 +49,14 @@ export default function ScriptSection({
         </div>
 
         <div className="flex shrink-0 gap-4 text-xs">
+          {active && (
+            <a
+              href={`/projects/${slug}/parameters`}
+              className="text-dim underline-offset-4 hover:text-paper hover:underline"
+            >
+              edit parameters
+            </a>
+          )}
           {active ? (
             <>
               <a

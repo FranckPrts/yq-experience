@@ -1,129 +1,61 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireProjectRole } from "@/lib/auth/dal";
-import { coerceLexicon, coerceTheme } from "@/lib/theme/project-theme";
+import { coerceLexicon, coerceTheme, FONTS } from "@/lib/theme/project-theme";
 import { setOpenForParticipation } from "./actions";
-import { AppearanceForm, RenameForm } from "./settings-form";
-import ConnectionSection, { type ConnectionView } from "./connection-section";
-import ScriptSection from "./script-section";
-import {
-  accessTokenFor,
-  listSupabaseProjects,
-  SCOPE_PURPOSE,
-  SupabaseApiError,
-} from "@/lib/supabase/management";
+import { RenameForm } from "./settings-form";
+import ProjectNav from "./nav";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Reads the account's project list, if the connection can still do so. A failure
- * here is information, not a crash: an expired or revoked authorisation should
- * show as a message on the page, with the reconnect button still reachable.
- */
-async function connectionView(connection: {
-  id: string;
-  projectRef: string | null;
-  provisionedAt: Date | null;
-  secretKeyEnc: string | null;
-  accessTokenEnc: string | null;
-} | null): Promise<ConnectionView> {
-  if (!connection || !connection.accessTokenEnc) {
-    return {
-      connected: false,
-      projectRef: null,
-      provisioned: false,
-      hasSecretKey: false,
-      available: null,
-      listError: null,
-    };
-  }
-
-  const base = {
-    connected: true,
-    projectRef: connection.projectRef,
-    provisioned: !!connection.provisionedAt,
-    hasSecretKey: !!connection.secretKeyEnc,
-  };
-
-  try {
-    const token = await accessTokenFor(connection.id);
-    const projects = await listSupabaseProjects(token);
-    return {
-      ...base,
-      available: projects.map((p) => ({
-        ref: p.ref,
-        name: p.name,
-        region: p.region,
-      })),
-      listError: null,
-    };
-  } catch (error) {
-    // Expected and explainable, so `warn` — `console.error` would raise Next's
-    // dev error overlay over something the page already handles.
-    console.warn("[supabase] listing projects failed:", error);
-
-    if (error instanceof SupabaseApiError) {
-      const missing = error.missingScopes;
-      if (missing) {
-        const named = missing
-          .map((s) => `${s}${SCOPE_PURPOSE[s] ? ` (to ${SCOPE_PURPOSE[s]})` : ""}`)
-          .join(", ");
-        return {
-          ...base,
-          available: null,
-          listError: `Your Supabase OAuth app is missing the scope ${named}. Add it in the Supabase dashboard under organization → OAuth Apps, then disconnect and connect again — a token only carries the scopes it was granted at authorisation.`,
-        };
-      }
-      if (error.status === 401) {
-        return {
-          ...base,
-          available: null,
-          listError:
-            "Supabase rejected this authorisation. Disconnect and connect again.",
-        };
-      }
-    }
-
-    return {
-      ...base,
-      available: null,
-      listError:
-        "Could not reach Supabase to list this account's projects. Try again shortly.",
-    };
-  }
+/** One line per bucket: what it is, and whether it is ready. */
+function Bucket({
+  href,
+  title,
+  state,
+  ready,
+  blurb,
+}: {
+  href: string;
+  title: string;
+  state: string;
+  ready: boolean;
+  blurb: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex flex-col gap-1 border-b border-paper/10 pb-3 hover:border-paper/30"
+    >
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="text-sm text-paper">{title}</span>
+        <span className={`shrink-0 text-xs ${ready ? "text-dim" : "text-amber-400/80"}`}>
+          {state}
+        </span>
+      </div>
+      <span className="text-[11px] leading-relaxed text-dim">{blurb}</span>
+    </Link>
+  );
 }
 
-export default async function ProjectSettingsPage({
+export default async function ProjectOverviewPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  // Viewers may look; the forms below decide for themselves what may be edited.
   const access = await requireProjectRole(slug, "VIEWER");
 
   const project = await db.project.findUniqueOrThrow({
     where: { id: access.projectId },
     include: {
       connection: {
-        select: {
-          id: true,
-          projectRef: true,
-          provisionedAt: true,
-          secretKeyEnc: true,
-          accessTokenEnc: true,
-        },
+        select: { projectRef: true, provisionedAt: true, accessTokenEnc: true },
       },
       scripts: {
         orderBy: { version: "desc" },
-        take: 20,
-        select: {
-          label: true,
-          version: true,
-          parameters: true,
-          createdAt: true,
-          uploadedById: true,
-        },
+        take: 1,
+        select: { version: true, parameters: true },
       },
       members: {
         include: { user: { select: { email: true, displayName: true } } },
@@ -134,34 +66,28 @@ export default async function ProjectSettingsPage({
 
   const theme = coerceTheme(project.theme);
   const lexicon = coerceLexicon(project.lexicon);
+  const script = project.scripts[0];
+  const connection = project.connection;
   const isOwner = access.role === "OWNER";
-  const canEdit = access.role === "OWNER" || access.role === "COLLABORATOR";
+
+  const connectionState = !connection?.accessTokenEnc
+    ? "not connected"
+    : !connection.projectRef
+      ? "no target chosen"
+      : connection.provisionedAt
+        ? `${connection.projectRef} · provisioned`
+        : `${connection.projectRef} · not provisioned`;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-10 bg-void p-8 text-paper">
-      <header className="flex items-baseline justify-between gap-4">
-        <div>
-          <h1 className="text-sm">{project.name}</h1>
-          <p className="text-xs text-dim">
-            {project.slug} · you are {access.role.toLowerCase()}
-            {access.viaPlatformAdmin && " (as administrator)"}
-          </p>
-        </div>
-        <div className="flex gap-4">
-          <Link
-            href={`/dev/sketch?project=${project.slug}`}
-            className="text-xs text-dim underline-offset-4 hover:text-paper hover:underline"
-          >
-            preview
-          </Link>
-          <Link
-            href="/projects"
-            className="text-xs text-dim underline-offset-4 hover:text-paper hover:underline"
-          >
-            all projects
-          </Link>
-        </div>
-      </header>
+    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-8 bg-void p-8 text-paper">
+      <ProjectNav
+        slug={slug}
+        projectName={project.name}
+        here="overview"
+        subtitle={`${project.slug} · you are ${access.role.toLowerCase()}${
+          access.viaPlatformAdmin ? " (as administrator)" : ""
+        }`}
+      />
 
       <section className="flex flex-col gap-4">
         <h2 className="text-xs text-dim">participation</h2>
@@ -190,48 +116,38 @@ export default async function ProjectSettingsPage({
         </div>
       </section>
 
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xs text-dim">the three parts</h2>
+        <Bucket
+          href={`/projects/${slug}/participant-frontend`}
+          title="style &amp; language"
+          state={`${lexicon.noun} · ${FONTS[theme.font].label.toLowerCase()}`}
+          ready
+          blurb="The palette, typeface and the word for what participants make."
+        />
+        <Bucket
+          href={`/projects/${slug}/visual`}
+          title="script &amp; parameters"
+          state={
+            script
+              ? `v${script.version} · ${(script.parameters as unknown[]).length} parameters`
+              : "no script"
+          }
+          ready={!!script}
+          blurb="The p5 sketch, and which of its knobs a participant may turn."
+        />
+        <Bucket
+          href={`/projects/${slug}/database`}
+          title="database"
+          state={connectionState}
+          ready={!!connection?.provisionedAt}
+          blurb="Your Supabase project, where participants and their avatars live."
+        />
+      </section>
+
       <section className="flex flex-col gap-4">
         <h2 className="text-xs text-dim">name</h2>
-        <RenameForm
-          slug={project.slug}
-          name={project.name}
-          canRename={isOwner}
-        />
-      </section>
-
-      {canEdit && (
-        <section className="flex flex-col gap-4">
-          <h2 className="text-xs text-dim">appearance &amp; language</h2>
-          <AppearanceForm
-            slug={project.slug}
-            theme={theme}
-            lexicon={lexicon}
-          />
-        </section>
-      )}
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-xs text-dim">supabase</h2>
-        <ConnectionSection
-          slug={project.slug}
-          view={await connectionView(project.connection)}
-          canEdit={isOwner}
-        />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-xs text-dim">script</h2>
-        <ScriptSection
-          slug={project.slug}
-          canEdit={canEdit}
-          versions={project.scripts.map((s) => ({
-            version: s.version,
-            label: s.label,
-            parameterCount: (s.parameters as unknown[]).length,
-            createdAt: s.createdAt.toISOString().slice(0, 10),
-            uploadedBy: s.uploadedById,
-          }))}
-        />
+        <RenameForm slug={project.slug} name={project.name} canRename={isOwner} />
       </section>
 
       <section className="flex flex-col gap-3">

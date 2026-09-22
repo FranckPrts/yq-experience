@@ -5,7 +5,7 @@ import {
   chooseSupabaseProject,
   disconnectSupabase,
   type ConnectionState,
-} from "./connection-actions";
+} from "./actions";
 
 export type ConnectionView = {
   connected: boolean;
