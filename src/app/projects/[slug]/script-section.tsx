@@ -33,18 +33,57 @@ export default function ScriptSection({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="text-sm">
-        {active ? (
-          <>
-            Active: <code className="text-paper/90">{active.label ?? "script"}</code>{" "}
-            <span className="text-dim">
-              v{active.version} · {active.parameterCount} parameters
-            </span>
-          </>
-        ) : (
-          <span className="text-dim">No script uploaded yet.</span>
-        )}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+        <div className="text-sm">
+          {active ? (
+            <>
+              Active:{" "}
+              <code className="text-paper/90">{active.label ?? "script"}</code>{" "}
+              <span className="text-dim">
+                v{active.version} · {active.parameterCount} parameters
+              </span>
+            </>
+          ) : (
+            <span className="text-dim">No script uploaded yet.</span>
+          )}
+        </div>
+
+        <div className="flex shrink-0 gap-4 text-xs">
+          {active ? (
+            <>
+              <a
+                href={`/api/projects/${slug}/script`}
+                className="text-dim underline-offset-4 hover:text-paper hover:underline"
+              >
+                download this script (.zip)
+              </a>
+            </>
+          ) : (
+            <>
+              <a
+                href="/api/starter"
+                className="text-dim underline-offset-4 hover:text-paper hover:underline"
+              >
+                download starter (.zip)
+              </a>
+            </>
+          )}
+        </div>
       </div>
+
+      {active && (
+        <p className="text-[11px] leading-relaxed text-dim">
+          Starting fresh? The{" "}
+          <a
+            href="/api/starter"
+            className="underline underline-offset-4 hover:text-paper"
+          >
+            starter bundle
+          </a>{" "}
+          is a working sketch, its declaration and a README covering the
+          contract — every parameter type used once.
+        </p>
+      )}
 
       {canEdit && (
         <form action={action} className="flex flex-col gap-4">
@@ -158,6 +197,12 @@ export default function ScriptSection({
                 </span>
                 <span className="flex shrink-0 items-baseline gap-3 text-dim">
                   <span>{v.createdAt}</span>
+                  <a
+                    href={`/api/projects/${slug}/script?version=${v.version}`}
+                    className="underline-offset-4 hover:text-paper hover:underline"
+                  >
+                    .zip
+                  </a>
                   {canEdit && i !== 0 && (
                     <form action={promoteScriptVersion}>
                       <input type="hidden" name="slug" value={slug} />
