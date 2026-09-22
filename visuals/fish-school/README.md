@@ -20,6 +20,27 @@ entries are answers (`avatars.answers`), everything else is render input
 
 Order is the order the participant sees.
 
+## Two tiers, and one gate
+
+The declaration mirrors how the bench console is sorted, because the sorting is
+part of the design rather than a quirk of that page.
+
+`advanced: true` drops a control below an **additional parameters** heading:
+`fx_glow`, `fx_grain`, `core` and `orbit_mode` are staging decisions — how the
+school is lit and how it moves as a body — while everything above the line is
+what makes the school *yours*. It is presentation only. An advanced parameter is
+stored, coerced and posted to the sketch exactly like any other. The harness
+opens the section by default (`advancedOpen`); the participant flow leaves it
+shut.
+
+`enabledBy: "fx_wave"` on `current` is the second half of the same idea: the
+slider belongs to the switch above it, so it greys out when the shader is off
+instead of sitting there doing nothing visible. The value is kept while it is
+disabled, so flicking the shader back on restores the current that was set
+rather than snapping to 35. Gates are one level deep — `validate` rejects a
+toggle gated by a toggle gated by a toggle, which is a state machine, not a
+control panel.
+
 ## Domain vs. offered range
 
 `min`/`max` are the sketch's **full domain** — what `sketch.js` is prepared to
@@ -44,7 +65,8 @@ The same key works on any numeric parameter, not just hue.
 | Parameter | Note |
 | --- | --- |
 | `count` | 68 is the sketch's own ceiling (`COUNT_MAX`) — past it the swarm costs more than it reads. The floor of 4 keeps a school a plural thing. |
-| `shape` | Declaration order is what `coerce` stores, so listing `fish` first means the common case serializes as `["fish"]` rather than depending on click order. `minSelected: 1` stops an empty school. |
+| `shape` | A multi-select, not a pick-one: the sketch draws particle *i* as shape *(i mod n)*, so choosing fish **and** ellipse alternates them through the swarm. Declaration order is what `coerce` stores, so listing `fish` first means the common case serializes as `["fish"]` rather than depending on click order. `minSelected: 1` stops an empty school. |
+| `fx_wave`, `fx_glow`, `fx_grain` | The three `createFilterShader` passes, as `toggle` parameters. The sketch's `flag()` helper already accepted booleans, 0/1 and `"off"`, and `coerce` speaks the same dialect, so declaring them cost `sketch.js` nothing. |
 | `noise` | The sketch clamps 1–100 because it must render whatever the host posts; the declaration is where the narrower, art-directed range would live if one were wanted. |
 | `hue`, `hue2` | See above. |
 
@@ -52,7 +74,6 @@ The same key works on any numeric parameter, not just hue.
 
 | Key | Why |
 | --- | --- |
-| `fx_glow`, `fx_wave`, `fx_grain` | Shader toggles. There is no boolean parameter type, and these are staging decisions rather than choices about one's own avatar. They stay at the sketch's defaults (all on) and are exposed in `index.html` for tuning only. |
 | `size`, `intensity`, `center_y` | Host-only composition, same as the star. `AvatarCanvas` sends only declared parameters, so these fall to the sketch's defaults — which `knobs()` is written to expect. |
 
 ## Checking it

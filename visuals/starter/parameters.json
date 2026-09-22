@@ -1,0 +1,101 @@
+{
+  "$comment": "Starter declaration. Uses every parameter type once, so it doubles as a reference. Order is the order the participant sees; `advanced: true` sorts a control under the 'additional parameters' heading. `min`/`max` are the sketch's full domain, `truncatedScale` the narrower range actually offered.",
+  "lexicon": {
+    "noun": "avatar",
+    "nounPlural": "avatars"
+  },
+  "parameters": [
+    {
+      "name": "answer1",
+      "type": "text",
+      "label": "What would you name this?",
+      "description": "A `text` entry is a question, not a control — it is stored as an answer and never reaches the sketch.",
+      "placeholder": "e.g. First Light",
+      "maxLength": 40,
+      "default": ""
+    },
+    {
+      "name": "count",
+      "type": "discrete",
+      "label": "how_many",
+      "description": "A whole-numbered slider.",
+      "min": 3,
+      "max": 40,
+      "step": 1,
+      "default": 12
+    },
+    {
+      "name": "radius",
+      "type": "discrete",
+      "label": "spread",
+      "description": "How far out the ring sits.",
+      "min": 10,
+      "max": 160,
+      "step": 1,
+      "default": 60
+    },
+    {
+      "name": "spin",
+      "type": "continuous",
+      "label": "spin",
+      "description": "A float-stepped slider. Negative values turn it the other way.",
+      "min": -3,
+      "max": 3,
+      "step": 0.1,
+      "default": 1
+    },
+    {
+      "name": "hue",
+      "type": "discrete",
+      "label": "colour",
+      "description": "A hue slider. The domain is the whole 0–255 wheel; truncatedScale offers only warm colours, and 30 is the same orange it would be untruncated.",
+      "min": 0,
+      "max": 255,
+      "step": 1,
+      "display": "hue",
+      "truncatedScale": { "min": 0, "max": 60 },
+      "default": 30
+    },
+    {
+      "name": "shape",
+      "type": "select",
+      "label": "body",
+      "description": "Pick exactly one.",
+      "options": [
+        { "value": "circle", "label": "circle" },
+        { "value": "square", "label": "square" },
+        { "value": "diamond", "label": "diamond" }
+      ],
+      "default": "circle"
+    },
+    {
+      "name": "fx_trail",
+      "type": "toggle",
+      "label": "trails",
+      "description": "On or off. Gates the slider below it.",
+      "default": true
+    },
+    {
+      "name": "trail",
+      "type": "discrete",
+      "label": "trail_length",
+      "description": "Belongs to the toggle above: greyed out while trails are off, and its value is kept so turning them back on restores it.",
+      "enabledBy": "fx_trail",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "default": 40
+    },
+    {
+      "name": "wobble",
+      "type": "discrete",
+      "label": "wobble",
+      "description": "Sorted under 'additional parameters' — presentation only, stored and posted exactly like any other.",
+      "advanced": true,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "default": 20
+    }
+  ]
+}

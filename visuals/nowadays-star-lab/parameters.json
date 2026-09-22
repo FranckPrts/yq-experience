@@ -1,0 +1,80 @@
+{
+  "$comment": "Parameter declaration for the Nowadays star. Hand-written here; in the product this is what the Phase 2 builder produces. Order is the order the participant sees.",
+  "lexicon": {
+    "noun": "star",
+    "nounPlural": "stars"
+  },
+  "parameters": [
+    {
+      "name": "answer1",
+      "type": "text",
+      "label": "What would you name this star?",
+      "placeholder": "e.g. Ember Ring",
+      "maxLength": 40,
+      "default": ""
+    },
+    {
+      "name": "core",
+      "type": "discrete",
+      "label": "core_size",
+      "description": "Core",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "default": 50
+    },
+    {
+      "name": "orbit_mode",
+      "type": "select",
+      "label": "behavior",
+      "description": "How the corona moves",
+      "options": [
+        { "value": "clouds", "label": "clouds" },
+        { "value": "beads", "label": "beads" }
+      ],
+      "default": "clouds"
+    },
+    {
+      "name": "freq",
+      "type": "continuous",
+      "label": "frequency",
+      "description": "Frequency",
+      "min": 1,
+      "max": 6,
+      "step": 0.1,
+      "default": 5
+    },
+    {
+      "name": "noise",
+      "type": "discrete",
+      "label": "scatter",
+      "description": "Noise",
+      "min": 1,
+      "max": 100,
+      "step": 1,
+      "default": 20
+    },
+    {
+      "name": "hue",
+      "type": "discrete",
+      "label": "inner_color",
+      "description": "Corona hue",
+      "min": 0,
+      "max": 255,
+      "step": 1,
+      "display": "hue",
+      "default": 69
+    },
+    {
+      "name": "hue2",
+      "type": "discrete",
+      "label": "outer_color",
+      "description": "Outer hue",
+      "min": 0,
+      "max": 255,
+      "step": 1,
+      "display": "hue",
+      "default": 0
+    }
+  ]
+}

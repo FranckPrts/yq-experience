@@ -1,5 +1,5 @@
 {
-  "$comment": "Parameter declaration for the fish school. Data only — the reasoning behind each choice lives in README.md, because a declaration is loaded, never executed. Order is the order the participant sees. `min`/`max` are the sketch's full domain; `truncatedScale` is the narrower, art-directed range actually offered.",
+  "$comment": "Parameter declaration for the fish school. Data only — the reasoning behind each choice lives in README.md, because a declaration is loaded, never executed. Order is the order the participant sees, and `advanced: true` sorts a control under the 'additional parameters' heading. `min`/`max` are the sketch's full domain; `truncatedScale` is the narrower, art-directed range actually offered.",
   "lexicon": {
     "noun": "school",
     "nounPlural": "schools"
@@ -14,14 +14,22 @@
       "default": ""
     },
     {
-      "name": "count",
+      "name": "fx_wave",
+      "type": "toggle",
+      "label": "wave shader",
+      "description": "The water the school is seen through",
+      "default": true
+    },
+    {
+      "name": "wave",
       "type": "discrete",
-      "label": "school_size",
-      "description": "How many fish",
-      "min": 4,
-      "max": 68,
+      "label": "current",
+      "description": "How strongly the water moves",
+      "enabledBy": "fx_wave",
+      "min": 0,
+      "max": 100,
       "step": 1,
-      "default": 68
+      "default": 35
     },
     {
       "name": "shape",
@@ -38,15 +46,14 @@
       "minSelected": 1
     },
     {
-      "name": "orbit_mode",
-      "type": "select",
-      "label": "behavior",
-      "description": "How the school moves",
-      "options": [
-        { "value": "clouds", "label": "clouds" },
-        { "value": "beads", "label": "beads" }
-      ],
-      "default": "clouds"
+      "name": "count",
+      "type": "discrete",
+      "label": "school_size",
+      "description": "How many fish",
+      "min": 4,
+      "max": 68,
+      "step": 1,
+      "default": 68
     },
     {
       "name": "freq",
@@ -67,26 +74,6 @@
       "max": 100,
       "step": 1,
       "default": 20
-    },
-    {
-      "name": "wave",
-      "type": "discrete",
-      "label": "current",
-      "description": "The water the school is seen through",
-      "min": 0,
-      "max": 100,
-      "step": 1,
-      "default": 35
-    },
-    {
-      "name": "core",
-      "type": "discrete",
-      "label": "core_size",
-      "description": "How tightly the school gathers",
-      "min": 0,
-      "max": 100,
-      "step": 1,
-      "default": 50
     },
     {
       "name": "hue",
@@ -111,6 +98,45 @@
       "display": "hue",
       "truncatedScale": { "min": 75, "max": 205 },
       "default": 180
+    },
+    {
+      "name": "fx_glow",
+      "type": "toggle",
+      "label": "glow shader",
+      "description": "The lit water behind the school",
+      "advanced": true,
+      "default": true
+    },
+    {
+      "name": "fx_grain",
+      "type": "toggle",
+      "label": "grain shader",
+      "description": "Film grain and chromatic aberration",
+      "advanced": true,
+      "default": true
+    },
+    {
+      "name": "core",
+      "type": "discrete",
+      "label": "core_size",
+      "description": "How tightly the school gathers",
+      "advanced": true,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "default": 50
+    },
+    {
+      "name": "orbit_mode",
+      "type": "select",
+      "label": "behavior",
+      "description": "How the school moves",
+      "advanced": true,
+      "options": [
+        { "value": "clouds", "label": "clouds" },
+        { "value": "beads", "label": "beads" }
+      ],
+      "default": "clouds"
     }
   ]
 }

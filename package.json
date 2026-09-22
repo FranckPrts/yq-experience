@@ -3,18 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3100",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "admin": "tsx --conditions=react-server scripts/create-admin.mts",
+    "invite": "tsx --conditions=react-server scripts/create-invite.mts",
+    "project:create": "tsx --conditions=react-server scripts/create-project.mts",
+    "visual:check": "tsx --conditions=react-server scripts/check-visual.mts",
+    "connection:verify": "tsx --conditions=react-server scripts/verify-connection.mts"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.1",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.0",
     "next": "16.3.0",
     "p5": "^2.3.2",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -23,9 +32,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "daisyui": "^5.7.16",
+    "dotenv": "^18.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "prisma": "^7.10.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

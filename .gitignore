@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma — the client is generated from schema.prisma, so it is build output
+/src/generated
+/src/generated/prisma
+
+# dev
+noble-snuggling-quail.md
+nowadays_synch_20260919T1742.txt
+.agents/*
+.claude/*
+.vscode/*
+.windsurf/*
+skills-lock.json
+.vscode/tasks.json

@@ -11,6 +11,9 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // The scripts/ CLIs run under tsx, which resolves ESM specifiers literally
+    // and so needs the .ts extension written out. Safe with noEmit.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [

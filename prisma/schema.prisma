@@ -1,0 +1,263 @@
+// Constellation — our own system of record.
+//
+// Scope reminder: nothing here describes a participant. Participants exist only
+// in the tenant's own Supabase, under that project's anonymous auth and RLS.
+// What we store is who the tenants are, which projects they own, and the three
+// things a project needs to run: a Supabase connection, a look, and a script.
+//
+// Naming: models are PascalCase for Prisma, tables snake_case for Postgres.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Identity ───────────────────────────────────────────────────────────────
+//
+// Authentication binds to a person, because only a person can hold a credential
+// and be revoked individually. Authorisation is project-scoped — see Membership.
+
+model User {
+  id           String  @id @default(cuid())
+  /// Stored lowercased and trimmed; normalise at the edge, not in queries.
+  email        String  @unique
+  /// argon2id. Never selected into anything that leaves the server.
+  passwordHash String
+  displayName  String?
+
+  /// Platform-wide administrator: may invite users, see every project, and
+  /// grant this flag to others. Distinct from a project `Role`, which only
+  /// ever says what someone may do inside one project.
+  isPlatformAdmin Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions      Session[]
+  memberships   Membership[]
+  /// Projects this user owns. Ownership is also carried as a Membership row so
+  /// that permission checks never need to special-case the owner.
+  ownedProjects Project[]    @relation("ProjectOwner")
+
+  invitationsSent     Invitation[] @relation("InvitedBy")
+  invitationsAccepted Invitation[] @relation("AcceptedBy")
+
+  @@map("users")
+}
+
+/// Registration is invite-only: there is no open sign-up route, so an account
+/// exists only because someone with the standing to invite said it should.
+///
+/// The link carries a random token; the database keeps only its SHA-256, so
+/// read access to this table does not yield usable invitations. One invitation
+/// can do two jobs at once — create the account, and drop the new user straight
+/// into a project with a role — which is what makes "invite a co-tenant" a
+/// single link rather than a sign-up followed by a separate grant.
+model Invitation {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+
+  /// When set, only this address may redeem the invitation. Left null for a
+  /// link that may be handed to whoever is standing there.
+  email String?
+
+  /// Optional project to join on acceptance, with this role.
+  projectId String?
+  role      Role    @default(COLLABORATOR)
+
+  /// Whether redeeming also makes the new account a platform administrator.
+  grantsPlatformAdmin Boolean @default(false)
+
+  createdById  String
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?
+  /// Set when an admin withdraws an invitation before it is used.
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  createdBy  User     @relation("InvitedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  acceptedBy User?    @relation("AcceptedBy", fields: [acceptedById], references: [id])
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([createdById])
+  @@index([projectId])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+/// Server-side sessions, so signing out actually ends a session and removing a
+/// member takes effect on an already-issued one.
+model Session {
+  id String @id @default(cuid())
+
+  /// SHA-256 of the cookie's token. The token itself is never stored, so
+  /// database read access does not hand over live sessions.
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  /// Coarse provenance for the "signed-in devices" view; not used for auth.
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ─── Tenancy ────────────────────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  COLLABORATOR
+  VIEWER
+
+  @@map("role")
+}
+
+/// A project is one experience: one Supabase connection, one look, one script.
+model Project {
+  id      String @id @default(cuid())
+  /// Slugified from `name` on create, then stable — it appears in participant
+  /// URLs (/t/[slug]), so renaming the project must not break a live link.
+  slug    String @unique
+  name    String
+  ownerId String
+
+  /// The participant-facing gate. Nothing about a project is reachable by a
+  /// participant while this is false, whatever the script's own visibility.
+  openForParticipation Boolean @default(false)
+
+  /// Palette and typography — "a more elaborate dark-mode switch", defaulting
+  /// to the Nowadays palette. Shape lives in the app, not in a table, because
+  /// it is read whole and never queried by field.
+  theme Json?
+
+  /// The noun a participant sees ("star" / "stars") and the screen copy that is
+  /// currently inline in PlanetEditor. Belongs to the project, not the script,
+  /// so renaming "star" to "tree" never means editing delivered code.
+  lexicon Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner       User                @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members     Membership[]
+  connection  SupabaseConnection?
+  scripts     AvatarScript[]
+  invitations Invitation[]
+
+  @@index([ownerId])
+  @@map("projects")
+}
+
+/// Project-scoped authorisation. This is what makes co-tenancy work: an owner
+/// invites collaborators, picks their role, and can revoke them individually —
+/// none of which a shared project password could do.
+model Membership {
+  id          String   @id @default(cuid())
+  projectId   String
+  userId      String
+  role        Role     @default(COLLABORATOR)
+  invitedById String?
+  createdAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+// ─── Artefact 1: the tenant's Supabase ──────────────────────────────────────
+
+/// One experiment per Supabase project, strictly — hence one connection per
+/// project rather than a list.
+///
+/// Secrecy splits by audience, exactly as the participant data path does. The
+/// project URL and publishable key are public by design: they ship to every
+/// participant's browser and are what makes the direct-to-Supabase path work.
+/// The OAuth tokens and the secret key never leave the server, and are stored
+/// as AES-256-GCM envelopes (`v1:<iv>:<tag>:<ciphertext>`, base64) with the
+/// master key in the environment. Bare Postgres gives us no Vault, so this is
+/// the deviation from PRD §3.3, made explicit in the column names.
+model SupabaseConnection {
+  id        String @id @default(cuid())
+  projectId String @unique
+
+  /// e.g. "vbtkzneifqcoxkbynjrt". Null between authorising and choosing which
+  /// of the account's projects this experiment targets — the OAuth grant covers
+  /// the whole Supabase organisation, so the target is a separate decision.
+  projectRef     String?
+  /// https://<ref>.supabase.co — public. Null until a target is chosen.
+  projectUrl     String?
+  /// Public by design. Shipped to participants and pasted into the scene script.
+  publishableKey String?
+
+  accessTokenEnc  String?
+  refreshTokenEnc String?
+  secretKeyEnc    String?
+  /// Which master key encrypted the above, so rotation is possible.
+  keyVersion      Int       @default(1)
+  tokenExpiresAt  DateTime?
+
+  /// Phase 3 provisioning state.
+  provisionedAt      DateTime?
+  anonSignInsEnabled Boolean   @default(false)
+  /// The schema generation this project was provisioned with. The scene script
+  /// hardcodes column names, so a tenant's pasted snippet is only valid for the
+  /// generation it was issued against — provisioning refuses to move a project
+  /// backwards past its recorded snippet.
+  schemaVersion      Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("supabase_connections")
+}
+
+// ─── Artefact 3: the delivered p5 script ────────────────────────────────────
+
+/// Scripts are authored in YouQuantified's editor and exported to us; we never
+/// edit p5 here. Uploads are append-only: a new upload is a new version rather
+/// than an overwrite, so a project that is mid-event can be rolled back.
+/// The active script is simply the highest version.
+model AvatarScript {
+  id        String @id @default(cuid())
+  projectId String
+  version   Int
+
+  label String?
+  /// The script itself. Text rather than a file on disk: they are ~12KB, and a
+  /// column keeps upload atomic with its declaration and removes a storage
+  /// dependency we would otherwise need on day one.
+  code  String
+
+  /// The parameter declaration — continuous / discrete / select / multiselect /
+  /// text. One list drives the participant's controls *and* their questions,
+  /// and each entry's `type` decides where its value is stored on the tenant's
+  /// side: `text` is an answer, everything else is render input.
+  parameters Json
+
+  /// Extra <script src> tags the sketch needs, mirroring Visual.extensions.
+  extensions Json @default("[]")
+
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, version])
+  @@index([projectId])
+  @@map("avatar_scripts")
+}
