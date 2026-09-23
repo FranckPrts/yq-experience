@@ -2,9 +2,10 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireProjectRole } from "@/lib/auth/dal";
 import { coerceLexicon, coerceTheme, FONTS } from "@/lib/theme/project-theme";
-import { setOpenForParticipation } from "./actions";
 import { RenameForm } from "./settings-form";
 import ProjectNav from "./nav";
+import ParticipationToggle from "./participation-toggle";
+import { projectReadiness } from "@/lib/projects/readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,8 @@ export default async function ProjectOverviewPage({
   const script = project.scripts[0];
   const connection = project.connection;
   const isOwner = access.role === "OWNER";
+  const readiness = await projectReadiness(access.projectId);
+  const base = process.env.APP_BASE_URL ?? "http://localhost:3100";
 
   const connectionState = !connection?.accessTokenEnc
     ? "not connected"
@@ -91,29 +94,13 @@ export default async function ProjectOverviewPage({
 
       <section className="flex flex-col gap-4">
         <h2 className="text-xs text-dim">participation</h2>
-        <div className="flex items-center gap-4">
-          <span className="text-sm">
-            {project.openForParticipation
-              ? "Open — participants can reach it."
-              : "Closed — nothing is reachable by participants."}
-          </span>
-          {isOwner && (
-            <form action={setOpenForParticipation}>
-              <input type="hidden" name="slug" value={project.slug} />
-              <input
-                type="hidden"
-                name="open"
-                value={project.openForParticipation ? "false" : "true"}
-              />
-              <button
-                type="submit"
-                className="text-sm text-paper underline underline-offset-4"
-              >
-                {project.openForParticipation ? "close" : "open"}
-              </button>
-            </form>
-          )}
-        </div>
+        <ParticipationToggle
+          slug={project.slug}
+          open={project.openForParticipation}
+          canEdit={isOwner}
+          missing={readiness.missing}
+          publicUrl={`${base}/e/${project.slug}`}
+        />
       </section>
 
       <section className="flex flex-col gap-3">

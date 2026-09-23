@@ -14,6 +14,7 @@ import {
   updateAuthConfig,
 } from "@/lib/supabase/management";
 import { provisioningSql, SCHEMA_VERSION } from "@/lib/spoke/schema";
+import { inspectSpoke, wipeDataSql, wipeSchemaSql } from "@/lib/spoke/inspect";
 
 export type ConnectionState = { error?: string; saved?: boolean };
 
@@ -213,6 +214,122 @@ export async function setAnonRateLimit(
   } catch (error) {
     console.warn("[provision] rate limit update failed:", error);
     return { error: "Supabase would not accept that change." };
+  }
+}
+
+export type DestructiveState = { error?: string; done?: string };
+
+/**
+ * The guards every destructive action passes, in one place so they cannot drift
+ * apart between "wipe the data" and "wipe everything".
+ *
+ * Three of them, each earning its place:
+ *
+ * - **Owner only.** Collaborators edit content; they do not destroy it.
+ * - **The project must be closed.** Wiping mid-event is almost never intended,
+ *   and closing first is a deliberate pause that costs one click and has caught
+ *   the mistake by the time it is finished.
+ * - **Type the slug.** Not a checkbox: a confirmation you can click through
+ *   without reading is not a confirmation. The slug is on screen, so this is
+ *   friction rather than a puzzle.
+ */
+async function guardDestructive(
+  formData: FormData,
+): Promise<
+  | { ok: true; connection: { id: string; projectRef: string }; slug: string }
+  | { ok: false; error: string }
+> {
+  const slug = String(formData.get("slug") ?? "");
+  const typed = String(formData.get("confirm") ?? "").trim();
+  const { projectId } = await requireProjectRole(slug, "OWNER");
+
+  if (typed !== slug) {
+    return {
+      ok: false,
+      error: `Type “${slug}” exactly to confirm.`,
+    };
+  }
+
+  const project = await db.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: {
+      openForParticipation: true,
+      connection: { select: { id: true, projectRef: true } },
+    },
+  });
+
+  if (project.openForParticipation) {
+    return {
+      ok: false,
+      error:
+        "Close the project to participants first. Nothing is deleted while the doors are open.",
+    };
+  }
+  if (!project.connection?.projectRef) {
+    return { ok: false, error: "Not connected to a Supabase project." };
+  }
+
+  return {
+    ok: true,
+    slug,
+    connection: {
+      id: project.connection.id,
+      projectRef: project.connection.projectRef,
+    },
+  };
+}
+
+/** Empties the tables, leaving the schema in place. Participant data is gone. */
+export async function wipeData(
+  _prev: DestructiveState,
+  formData: FormData,
+): Promise<DestructiveState> {
+  const guard = await guardDestructive(formData);
+  if (!guard.ok) return { error: guard.error };
+
+  try {
+    const token = await accessTokenFor(guard.connection.id);
+    const before = await inspectSpoke(guard.connection.projectRef, token);
+    await runQuery(guard.connection.projectRef, token, wipeDataSql());
+
+    revalidatePath(`/projects/${guard.slug}/database`);
+    return {
+      done: `Deleted ${before.avatars.rows ?? 0} avatar(s) and ${before.scores.rows ?? 0} score(s). The tables and policies are still in place.`,
+    };
+  } catch (error) {
+    console.warn("[spoke] wipe data failed:", error);
+    return { error: "Supabase refused the delete. Nothing was changed." };
+  }
+}
+
+/** Drops everything provisioning created. The rest of their project is untouched. */
+export async function wipeSchema(
+  _prev: DestructiveState,
+  formData: FormData,
+): Promise<DestructiveState> {
+  const guard = await guardDestructive(formData);
+  if (!guard.ok) return { error: guard.error };
+
+  try {
+    const token = await accessTokenFor(guard.connection.id);
+    const before = await inspectSpoke(guard.connection.projectRef, token);
+    await runQuery(guard.connection.projectRef, token, wipeSchemaSql());
+
+    // Our record has to follow, or the project would claim to be provisioned
+    // while the tables are gone — and the readiness gate would let it open.
+    await db.supabaseConnection.update({
+      where: { id: guard.connection.id },
+      data: { provisionedAt: null, schemaVersion: null },
+    });
+
+    revalidatePath(`/projects/${guard.slug}/database`);
+    revalidatePath(`/projects/${guard.slug}`);
+    return {
+      done: `Dropped both tables, along with ${before.avatars.rows ?? 0} avatar(s) and ${before.scores.rows ?? 0} score(s). Provision again to start over.`,
+    };
+  } catch (error) {
+    console.warn("[spoke] wipe schema failed:", error);
+    return { error: "Supabase refused the drop. Nothing was changed." };
   }
 }
 

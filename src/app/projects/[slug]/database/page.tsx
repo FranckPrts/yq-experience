@@ -9,6 +9,8 @@ import {
 import ProjectNav from "../nav";
 import ConnectionSection, { type ConnectionView } from "./section";
 import ProvisionSection from "./provision-section";
+import DangerSection, { type LiveState } from "./danger-section";
+import { inspectSpoke } from "@/lib/spoke/inspect";
 import { SCHEMA_VERSION, sceneSnippet } from "@/lib/spoke/schema";
 
 export const dynamic = "force-dynamic";
@@ -91,6 +93,60 @@ async function connectionView(connection: {
   }
 }
 
+/**
+ * Asks the database what it actually contains. Never throws into the page: an
+ * unreachable database is a line of text, not a stack trace, and the reconnect
+ * and provision controls must stay usable while it is down.
+ */
+async function liveState(connection: {
+  id: string;
+  projectRef: string | null;
+  provisionedAt: Date | null;
+  accessTokenEnc: string | null;
+} | null): Promise<LiveState> {
+  const blank: LiveState = {
+    reachable: false,
+    error: null,
+    installed: false,
+    avatars: { exists: false, rows: null, rlsEnabled: false, policies: 0 },
+    scores: { exists: false, rows: null, rlsEnabled: false, policies: 0 },
+    stagedCount: null,
+    drifted: false,
+  };
+  if (!connection?.projectRef || !connection.accessTokenEnc) return blank;
+
+  try {
+    const token = await accessTokenFor(connection.id);
+    const state = await inspectSpoke(connection.projectRef, token);
+    return {
+      reachable: true,
+      error: null,
+      installed: state.installed,
+      avatars: {
+        exists: state.avatars.exists,
+        rows: state.avatars.rows,
+        rlsEnabled: state.avatars.rlsEnabled,
+        policies: state.avatars.policies,
+      },
+      scores: {
+        exists: state.scores.exists,
+        rows: state.scores.rows,
+        rlsEnabled: state.scores.rlsEnabled,
+        policies: state.scores.policies,
+      },
+      stagedCount: state.stagedCount,
+      drifted: !!connection.provisionedAt && !state.installed,
+    };
+  } catch (error) {
+    console.warn("[supabase] inspecting the database failed:", error);
+    return {
+      ...blank,
+      error:
+        "Could not read the database just now — the authorisation may need renewing.",
+    };
+  }
+}
+
 export default async function DatabasePage({
   params,
 }: {
@@ -103,6 +159,7 @@ export default async function DatabasePage({
     where: { id: access.projectId },
     select: {
       name: true,
+      openForParticipation: true,
       connection: {
         select: {
           id: true,
@@ -155,6 +212,15 @@ export default async function DatabasePage({
                   })
                 : null,
           }}
+        />
+      </section>
+
+      <section className="flex flex-col gap-4 border-t border-paper/10 pt-6">
+        <DangerSection
+          slug={slug}
+          canEdit={access.role === "OWNER"}
+          isOpen={project.openForParticipation}
+          live={await liveState(project.connection)}
         />
       </section>
     </main>
