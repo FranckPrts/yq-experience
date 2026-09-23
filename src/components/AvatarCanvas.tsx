@@ -18,6 +18,17 @@ type AvatarCanvasProps = {
   code: string;
   /** Render values only — `text` answers don't belong here. */
   params: ParamValues;
+  /**
+   * Host-supplied knobs the participant never sees: `intensity`, `center_y`,
+   * `size`. Merged over `params` on the way out, so the declaration stays a
+   * description of what a *participant* controls and never has to grow a field
+   * to accommodate the page that renders it.
+   *
+   * `intensity` is the one that matters here — every sketch eases toward it, so
+   * holding it at 0 until the avatar is known lets the real one fade in rather
+   * than having a default sit there pretending.
+   */
+  host?: ParamValues;
   extensions?: { url: string }[];
   className?: string;
   onLog?: (log: SketchLog) => void;
@@ -35,10 +46,20 @@ function inlineScript(source: string): string {
 export default function AvatarCanvas({
   code,
   params,
+  host,
   extensions = [],
   className = "",
   onLog,
 }: AvatarCanvasProps) {
+  // Host knobs win: a declaration cannot override the page's own composition.
+  // Compared by value, like `extensions` — an inline `{ intensity: 1 }` would
+  // otherwise be a fresh object every render and re-post the params each time.
+  const hostKey = JSON.stringify(host ?? null);
+  const payload = useMemo(
+    () => (host ? { ...params, ...(JSON.parse(hostKey) as ParamValues) } : params),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [params, hostKey],
+  );
   const frameRef = useRef<HTMLIFrameElement>(null);
   const onLogRef = useRef(onLog);
   useEffect(() => {
@@ -51,7 +72,7 @@ export default function AvatarCanvas({
    * keeps `params` out of the memo's dependencies, so a slider move cannot
    * rebuild the document and restart the sketch.
    */
-  const [initialParams] = useState(() => params);
+  const [initialParams] = useState(() => payload);
 
   /**
    * Extensions are compared by value, not identity. A caller passing an inline
@@ -158,8 +179,8 @@ export default function AvatarCanvas({
 
   // Hand new params to the running sketch without tearing it down.
   useEffect(() => {
-    frameRef.current?.contentWindow?.postMessage(JSON.stringify(params), "*");
-  }, [params]);
+    frameRef.current?.contentWindow?.postMessage(JSON.stringify(payload), "*");
+  }, [payload]);
 
   // Inbound: the frame's origin is opaque, so `event.origin` arrives as "null"
   // and is worthless as a check. Identity of the sender is what still means
@@ -167,14 +188,14 @@ export default function AvatarCanvas({
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (event.source !== frameRef.current?.contentWindow) return;
-      let payload: { log?: SketchLog } | null = null;
+      let incoming: { log?: SketchLog } | null = null;
       try {
-        payload =
+        incoming =
           typeof event.data === "string" ? JSON.parse(event.data) : event.data;
       } catch {
         return; // untrusted data, not a protocol
       }
-      if (payload?.log) onLogRef.current?.(payload.log);
+      if (incoming?.log) onLogRef.current?.(incoming.log);
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);

@@ -34,7 +34,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       data-theme="dark"
       className={`${geistSans.variable} ${geistMono.variable} ${dmMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      {/*
+        Browser extensions — Grammarly and password managers among them — write
+        their own attributes onto <body> before React hydrates, which React then
+        reports as a mismatch we did not cause and cannot prevent.
+
+        This suppression reaches exactly one level: it covers this element's own
+        attributes and text, and nothing inside it. A genuine mismatch in any
+        component below still reports normally, which is what makes it safe to
+        apply here and nowhere else.
+      */}
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col font-sans"
+      >
+        {children}
+      </body>
     </html>
   );
 }

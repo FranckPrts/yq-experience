@@ -122,15 +122,33 @@ export default async function ExperiencePage({
   }
 
   return (
-    <ParticipantExperience
-      projectName={project.name}
-      theme={theme}
-      lexicon={lexicon}
-      supabaseUrl={connection!.projectUrl!}
-      publishableKey={connection!.publishableKey!}
-      code={script!.code}
-      scriptVersion={script!.version}
-      parameters={parameters}
-    />
+    <>
+      {/*
+        The 1MB p5 bundle is fetched by the iframe, which does not exist until
+        React has hydrated and built its srcDoc — so without this the download
+        does not even begin until the client bundle has parsed. Preloading from
+        the server-rendered HTML starts it immediately, in parallel. `crossorigin`
+        has to match the iframe's script tag or the cache entry will not be
+        reused. Supabase gets a preconnect for the same reason: the participant
+        will authenticate against it moments from now.
+      */}
+      <link
+        rel="preload"
+        as="script"
+        href="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"
+        crossOrigin="anonymous"
+      />
+      <link rel="preconnect" href={connection!.projectUrl!} crossOrigin="" />
+      <ParticipantExperience
+        projectName={project.name}
+        theme={theme}
+        lexicon={lexicon}
+        supabaseUrl={connection!.projectUrl!}
+        publishableKey={connection!.publishableKey!}
+        code={script!.code}
+        scriptVersion={script!.version}
+        parameters={parameters}
+      />
+    </>
   );
 }

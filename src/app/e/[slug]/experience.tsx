@@ -142,14 +142,14 @@ export default function ParticipantExperience({
     }
   }
 
+  const noun = lexicon.noun;
+
   const style = {
     ...themeCssVars(theme),
     backgroundColor: theme.void,
     color: theme.paper,
     fontFamily: FONTS[theme.font].stack,
   } as React.CSSProperties;
-
-  const noun = lexicon.noun;
 
   return (
     <main style={style} className="flex min-h-screen flex-col">
@@ -160,17 +160,22 @@ export default function ParticipantExperience({
           key={scriptVersion}
           code={code}
           params={sketchParams}
+          /* Held at 0 until the participant's own values have arrived, so the
+             avatar fades in as *theirs*. Rendering the declaration's defaults
+             at full strength would show a stranger's avatar and then swap it. */
+          host={{ intensity: status === "ready" ? 1 : 0 }}
           className="h-full w-full"
         />
+        {status === "starting" && (
+          <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-6">
+            <p className="text-xs" style={{ color: theme.dim }}>
+              finding your {noun}…
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-6">
-        {status === "starting" && (
-          <p className="text-xs" style={{ color: theme.dim }}>
-            starting…
-          </p>
-        )}
-
         {status === "error" && (
           <div className="flex flex-col gap-2">
             <p className="text-sm">This experience can’t start right now.</p>
