@@ -6,6 +6,8 @@ import { RenameForm } from "./settings-form";
 import ProjectNav from "./nav";
 import ParticipationToggle from "./participation-toggle";
 import { projectReadiness } from "@/lib/projects/readiness";
+import { pendingInvitations } from "@/lib/auth/invitations";
+import MembersSection from "./members-section";
 
 export const dynamic = "force-dynamic";
 
@@ -139,17 +141,26 @@ export default async function ProjectOverviewPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-xs text-dim">members</h2>
-        <ul className="flex flex-col gap-2 text-xs">
-          {project.members.map((m) => (
-            <li
-              key={m.id}
-              className="flex justify-between gap-4 border-b border-paper/10 pb-2"
-            >
-              <span>{m.user.displayName ?? m.user.email}</span>
-              <span className="text-dim">{m.role.toLowerCase()}</span>
-            </li>
-          ))}
-        </ul>
+        <MembersSection
+          slug={project.slug}
+          canEdit={isOwner}
+          members={project.members.map((m) => ({
+            userId: m.userId,
+            label: m.user.displayName ?? m.user.email,
+            role: m.role,
+            isYou: m.userId === access.user.id,
+          }))}
+          pending={
+            isOwner
+              ? (await pendingInvitations(access.projectId)).map((p) => ({
+                  id: p.id,
+                  email: p.email,
+                  role: p.role,
+                  expires: p.expiresAt.toISOString().slice(0, 10),
+                }))
+              : []
+          }
+        />
       </section>
     </main>
   );

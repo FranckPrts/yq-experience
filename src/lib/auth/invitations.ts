@@ -28,7 +28,6 @@ export type NewInvitation = {
   email?: string | null;
   projectId?: string | null;
   role?: Role;
-  grantsPlatformAdmin?: boolean;
   ttlDays?: number;
 };
 
@@ -48,7 +47,10 @@ export async function createInvitation(input: NewInvitation) {
       email: input.email?.trim().toLowerCase() || null,
       projectId: input.projectId ?? null,
       role: input.role ?? "COLLABORATOR",
-      grantsPlatformAdmin: input.grantsPlatformAdmin ?? false,
+      // Never true. Platform admin is granted to an existing account by an
+      // existing admin (`lib/auth/admins.ts`), never carried by a link that
+      // works for whoever holds it. The column stays only so old rows read.
+      grantsPlatformAdmin: false,
       createdById: input.createdById,
       expiresAt,
     },
@@ -118,7 +120,12 @@ export async function redeemInvitation(
 
   const existing = await db.user.findUnique({ where: { email } });
   if (existing) {
-    return { ok: false, error: "An account with that email already exists." };
+    // Not a dead end: the invitation page offers a sign-in link that comes
+    // back here, where `joinWithInvitation` handles people who already exist.
+    return {
+      ok: false,
+      error: "You already have an account — sign in to accept this invitation.",
+    };
   }
 
   const passwordHash = await hashPassword(input.password);
@@ -137,7 +144,7 @@ export async function redeemInvitation(
           email,
           passwordHash,
           displayName: input.displayName?.trim() || null,
-          isPlatformAdmin: invitation.grantsPlatformAdmin,
+          isPlatformAdmin: false,
         },
       });
 
@@ -167,6 +174,110 @@ export async function redeemInvitation(
     }
     throw error;
   }
+}
+
+export type JoinResult =
+  | { ok: true; projectSlug: string | null; alreadyMember: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Accepts an invitation as someone who already has an account.
+ *
+ * Co-tenancy mostly happens between people who are *already* here — a tenant
+ * inviting a colleague who runs their own project — so an invitation that could
+ * only create accounts would make "invite a co-tenant" work for strangers and
+ * fail for everyone else.
+ *
+ * Same single-use guarantee as account creation: consumed by a conditional
+ * update inside the transaction. An existing membership is never *downgraded* —
+ * accepting a viewer invitation must not quietly strip an owner of their role.
+ */
+export async function joinWithInvitation(
+  token: string,
+  user: { id: string; email: string },
+): Promise<JoinResult> {
+  const state = await inspectInvitation(token);
+  if (!state.ok) return { ok: false, error: state.reason };
+
+  const invitation = state.invitation!;
+  if (invitation.email && invitation.email !== user.email.toLowerCase()) {
+    return {
+      ok: false,
+      error: `This invitation is for ${invitation.email}. You are signed in as ${user.email}.`,
+    };
+  }
+
+  const RANK = { VIEWER: 1, COLLABORATOR: 2, OWNER: 3 } as const;
+
+  try {
+    const alreadyMember = await db.$transaction(async (tx) => {
+      const consumed = await tx.invitation.updateMany({
+        where: { id: invitation.id, acceptedAt: null, revokedAt: null },
+        data: { acceptedAt: new Date(), acceptedById: user.id },
+      });
+      if (consumed.count !== 1) throw new Error("used");
+
+
+      if (!invitation.projectId) return false;
+
+      const existing = await tx.membership.findUnique({
+        where: {
+          projectId_userId: { projectId: invitation.projectId, userId: user.id },
+        },
+      });
+
+      if (!existing) {
+        await tx.membership.create({
+          data: {
+            projectId: invitation.projectId,
+            userId: user.id,
+            role: invitation.role,
+            invitedById: invitation.createdById,
+          },
+        });
+        return false;
+      }
+
+      if (RANK[invitation.role] > RANK[existing.role]) {
+        await tx.membership.update({
+          where: { id: existing.id },
+          data: { role: invitation.role },
+        });
+      }
+      return true;
+    });
+
+    return {
+      ok: true,
+      projectSlug: invitation.project?.slug ?? null,
+      alreadyMember,
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message === "used") {
+      return { ok: false, error: "That invitation has already been used." };
+    }
+    throw error;
+  }
+}
+
+/** Open invitations for one project — what an owner sees as "pending". */
+export async function pendingInvitations(projectId: string) {
+  return db.invitation.findMany({
+    where: {
+      projectId,
+      acceptedAt: null,
+      revokedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      expiresAt: true,
+      createdBy: { select: { email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 export async function revokeInvitation(id: string): Promise<void> {

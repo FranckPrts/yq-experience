@@ -3,10 +3,38 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { passwordProblem } from "@/lib/auth/password";
-import { redeemInvitation } from "@/lib/auth/invitations";
+import { joinWithInvitation, redeemInvitation } from "@/lib/auth/invitations";
+import { currentUser } from "@/lib/auth/dal";
 import { createSession } from "@/lib/auth/session";
 
 export type AcceptState = { error?: string };
+
+/**
+ * Accepts as the person already signed in. Identity comes from the session,
+ * never from the form — the only thing the form carries is which invitation.
+ */
+export async function joinAsSignedIn(
+  _prev: AcceptState,
+  formData: FormData,
+): Promise<AcceptState> {
+  const token = String(formData.get("token") ?? "");
+  const user = await currentUser();
+  if (!user) return { error: "Your session has ended. Sign in again." };
+  if (!token) return { error: "This invitation link is incomplete." };
+
+  const result = await joinWithInvitation(token, user);
+  if (!result.ok) {
+    const friendly: Record<string, string> = {
+      unknown: "This invitation link is not valid.",
+      expired: "This invitation has expired. Ask for a new one.",
+      used: "This invitation has already been used.",
+      revoked: "This invitation was withdrawn.",
+    };
+    return { error: friendly[result.error] ?? result.error };
+  }
+
+  redirect(result.projectSlug ? `/projects/${result.projectSlug}` : "/projects");
+}
 
 /**
  * The token is the authorisation. It arrives in the form body rather than being
@@ -44,5 +72,5 @@ export async function acceptInvitation(
   const userAgent = (await headers()).get("user-agent");
   await createSession(result.userId, userAgent);
 
-  redirect(result.projectSlug ? `/projects` : "/projects");
+  redirect(result.projectSlug ? `/projects/${result.projectSlug}` : "/projects");
 }
