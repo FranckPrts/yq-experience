@@ -145,6 +145,11 @@ model Project {
   /// so renaming "star" to "tree" never means editing delivered code.
   lexicon Json?
 
+  /// Every sentence a participant reads — welcome, buttons, saved and closed
+  /// messages — as plain text with {noun}/{name} placeholders. Never HTML: it is
+  /// rendered on our page, outside the sandbox. Defaults live in the app.
+  copy Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

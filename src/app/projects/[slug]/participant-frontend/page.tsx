@@ -3,6 +3,8 @@ import { requireProjectRole } from "@/lib/auth/dal";
 import { coerceLexicon, coerceTheme } from "@/lib/theme/project-theme";
 import ProjectNav from "../nav";
 import AppearanceForm from "./form";
+import CopyForm from "./copy-form";
+import { coerceCopy } from "@/lib/theme/project-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,7 @@ export default async function ParticipantFrontendPage({
 
   const project = await db.project.findUniqueOrThrow({
     where: { id: access.projectId },
-    select: { name: true, theme: true, lexicon: true },
+    select: { name: true, theme: true, lexicon: true, copy: true },
   });
 
   const canEdit = access.role === "OWNER" || access.role === "COLLABORATOR";
@@ -31,16 +33,28 @@ export default async function ParticipantFrontendPage({
 
       <p className="max-w-prose text-[11px] leading-relaxed text-dim">
         What a participant sees around the sketch: the colours the page is drawn
-        in, the typeface, and the word for the thing they are making. The
-        controls themselves come from the script&rsquo;s parameters.
+        in, the typeface, the word for the thing they are making, and every
+        sentence they read. The controls themselves come from the script&rsquo;s
+        parameters.
       </p>
 
       {canEdit ? (
-        <AppearanceForm
-          slug={slug}
-          theme={coerceTheme(project.theme)}
-          lexicon={coerceLexicon(project.lexicon)}
-        />
+        <>
+          <AppearanceForm
+            slug={slug}
+            theme={coerceTheme(project.theme)}
+            lexicon={coerceLexicon(project.lexicon)}
+          />
+          <section className="flex flex-col gap-4 border-t border-paper/10 pt-8">
+            <h2 className="text-sm">wording</h2>
+            <CopyForm
+              slug={slug}
+              copy={coerceCopy(project.copy)}
+              lexicon={coerceLexicon(project.lexicon)}
+              theme={coerceTheme(project.theme)}
+            />
+          </section>
+        </>
       ) : (
         <p className="text-xs text-dim">
           You have read-only access to this project.

@@ -18,8 +18,9 @@ import {
   type ProjectLexicon,
   type ProjectTheme,
 } from "@/lib/theme/project-theme";
+import { fillCopy, type ProjectCopy } from "@/lib/theme/project-copy";
 
-type Step = "questions" | "tune" | "done";
+type Step = "intro" | "questions" | "tune" | "done";
 
 /**
  * The participant runtime — `PlanetEditor` generalized.
@@ -38,6 +39,7 @@ export default function ParticipantExperience({
   code,
   scriptVersion,
   parameters,
+  copy,
 }: {
   projectName: string;
   theme: ProjectTheme;
@@ -47,6 +49,7 @@ export default function ParticipantExperience({
   code: string;
   scriptVersion: number;
   parameters: Parameter[];
+  copy: ProjectCopy;
 }) {
   const questions = useMemo(
     () => parameters.filter((p) => p.type === "text"),
@@ -56,8 +59,11 @@ export default function ParticipantExperience({
   const [values, setValues] = useState<ParamValues>(() =>
     coerceAll(parameters, defaults(parameters)),
   );
+  const firstStep: Step = questions.length > 0 ? "questions" : "tune";
+  // Returning participants skip the welcome: the effect below moves them
+  // straight to tuning once their avatar is found.
   const [step, setStep] = useState<Step>(
-    questions.length > 0 ? "questions" : "tune",
+    copy.introEnabled ? "intro" : firstStep,
   );
   const [avatarId, setAvatarId] = useState<string | null>(null);
   const [status, setStatus] = useState<"starting" | "ready" | "error">(
@@ -142,7 +148,16 @@ export default function ParticipantExperience({
     }
   }
 
-  const noun = lexicon.noun;
+  const nameValue = questions[0] ? String(values[questions[0].name] ?? "") : "";
+  // Plain text in, plain text out: React escapes it, so tenant wording can
+  // never become markup on this page.
+  const t = (key: Exclude<keyof ProjectCopy, "introEnabled">) =>
+    fillCopy(copy[key], {
+      noun: lexicon.noun,
+      nounPlural: lexicon.nounPlural,
+      name: nameValue.trim(),
+      project: projectName,
+    });
 
   const style = {
     ...themeCssVars(theme),
@@ -169,7 +184,7 @@ export default function ParticipantExperience({
         {status === "starting" && (
           <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-6">
             <p className="text-xs" style={{ color: theme.dim }}>
-              finding your {noun}…
+              {t("loading")}
             </p>
           </div>
         )}
@@ -182,6 +197,26 @@ export default function ParticipantExperience({
             <p className="text-xs" style={{ color: theme.dim }}>
               {error}
             </p>
+          </div>
+        )}
+
+        {status === "ready" && step === "intro" && (
+          <div className="flex flex-col gap-4">
+            <h1 className="text-sm">{t("introTitle")}</h1>
+            <p
+              className="whitespace-pre-line text-xs leading-relaxed"
+              style={{ color: theme.dim }}
+            >
+              {t("introBody")}
+            </p>
+            <button
+              type="button"
+              onClick={() => setStep(firstStep)}
+              className="self-start text-sm underline underline-offset-4"
+              autoFocus
+            >
+              {t("introButton")}
+            </button>
           </div>
         )}
 
@@ -213,7 +248,7 @@ export default function ParticipantExperience({
               type="submit"
               className="self-start text-sm underline underline-offset-4"
             >
-              next
+              {t("nextButton")}
             </button>
           </form>
         )}
@@ -238,7 +273,7 @@ export default function ParticipantExperience({
                 className="text-sm underline underline-offset-4 disabled:no-underline"
                 style={saving ? { color: theme.dim } : undefined}
               >
-                {saving ? "saving…" : avatarId ? "save changes" : `save my ${noun}`}
+                {saving ? "saving…" : avatarId ? t("saveChangesButton") : t("saveButton")}
               </button>
               {questions.length > 0 && (
                 <button
@@ -247,7 +282,7 @@ export default function ParticipantExperience({
                   className="text-xs underline-offset-4 hover:underline"
                   style={{ color: theme.dim }}
                 >
-                  back
+                  {t("backButton")}
                 </button>
               )}
             </div>
@@ -256,22 +291,19 @@ export default function ParticipantExperience({
 
         {status === "ready" && step === "done" && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm">
-              Your {noun} is saved
-              {questions[0] && values[questions[0].name]
-                ? `, ${String(values[questions[0].name])}.`
-                : "."}
-            </p>
-            <p className="text-xs leading-relaxed" style={{ color: theme.dim }}>
-              It has joined the others. You can keep changing it — it stays
-              yours on this device.
+            <p className="text-sm">{t("savedTitle")}</p>
+            <p
+              className="whitespace-pre-line text-xs leading-relaxed"
+              style={{ color: theme.dim }}
+            >
+              {t("savedBody")}
             </p>
             <button
               type="button"
               onClick={() => setStep("tune")}
               className="self-start text-sm underline underline-offset-4"
             >
-              keep tuning
+              {t("keepTuningButton")}
             </button>
           </div>
         )}

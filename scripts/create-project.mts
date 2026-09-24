@@ -22,8 +22,9 @@ import dotenv from "dotenv";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { randomBytes, scryptSync } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { db } from "../src/lib/db.ts";
+import { hashPassword } from "../src/lib/auth/password.ts";
 import { createProject } from "../src/lib/projects/create-project.ts";
 import { assertValidDefinition } from "../src/lib/params/validate.ts";
 import type { Parameter, VisualDefinition } from "../src/lib/params/types.ts";
@@ -34,12 +35,6 @@ function arg(name: string): string | undefined {
 }
 const flag = (name: string) => process.argv.includes(`--${name}`);
 
-/**
- * Placeholder hashing so a seeded account can exist before Phase 1's auth
- * lands. Real sign-up uses argon2id; this is scrypt with a random salt, stored
- * in the same column, and every account made here should be re-hashed or
- * recreated once the auth path is real.
- */
 /**
  * Declarations are JSON, and only JSON.
  *
@@ -56,12 +51,6 @@ async function loadDeclaration(dir: string): Promise<VisualDefinition> {
     throw new Error(`No parameters.json in ${dir}`);
   }
   return JSON.parse(await readFile(file, "utf8")) as VisualDefinition;
-}
-
-function placeholderHash(password: string): string {
-  const salt = randomBytes(16);
-  const hash = scryptSync(password, salt, 64);
-  return `scrypt$${salt.toString("base64")}$${hash.toString("base64")}`;
 }
 
 async function main() {
@@ -95,7 +84,7 @@ async function main() {
   if (!owner) {
     const password = randomBytes(12).toString("base64url");
     owner = await db.user.create({
-      data: { email: ownerEmail, passwordHash: placeholderHash(password) },
+      data: { email: ownerEmail, passwordHash: await hashPassword(password) },
     });
     console.log(`\n  Created user ${ownerEmail}`);
     console.log(`  Temporary password (shown once): ${password}\n`);

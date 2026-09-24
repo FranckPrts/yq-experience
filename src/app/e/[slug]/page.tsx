@@ -9,6 +9,7 @@ import {
 import { validateParameters } from "@/lib/params/validate";
 import type { Parameter } from "@/lib/params/types";
 import ParticipantExperience from "./experience";
+import { coerceCopy, fillCopy } from "@/lib/theme/project-copy";
 
 /**
  * The participant's door. No sign-in, no account — the only identity involved
@@ -43,7 +44,7 @@ function Shut({
     >
       <div className="max-w-sm">
         <h1 className="text-sm">{title}</h1>
-        <p className="mt-2 text-xs" style={{ color: theme.dim }}>
+        <p className="mt-2 whitespace-pre-line text-xs" style={{ color: theme.dim }}>
           {message}
         </p>
       </div>
@@ -65,6 +66,7 @@ export default async function ExperiencePage({
       openForParticipation: true,
       theme: true,
       lexicon: true,
+      copy: true,
       connection: {
         select: {
           projectUrl: true,
@@ -86,13 +88,19 @@ export default async function ExperiencePage({
 
   const theme = coerceTheme(project.theme);
   const lexicon = coerceLexicon(project.lexicon);
+  const copy = coerceCopy(project.copy);
+  const vars = {
+    noun: lexicon.noun,
+    nounPlural: lexicon.nounPlural,
+    project: project.name,
+  };
 
   if (!project.openForParticipation) {
     return (
       <Shut
         theme={theme}
         title={project.name}
-        message="This experience isn’t open yet. Check back when the people running it say so."
+        message={fillCopy(copy.closedMessage, vars)}
       />
     );
   }
@@ -116,7 +124,7 @@ export default async function ExperiencePage({
       <Shut
         theme={theme}
         title={project.name}
-        message="This experience isn’t quite ready. The people running it have been left a note."
+        message={fillCopy(copy.notReadyMessage, vars)}
       />
     );
   }
@@ -148,6 +156,7 @@ export default async function ExperiencePage({
         code={script!.code}
         scriptVersion={script!.version}
         parameters={parameters}
+        copy={copy}
       />
     </>
   );
