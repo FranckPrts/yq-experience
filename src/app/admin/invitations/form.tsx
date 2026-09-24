@@ -71,10 +71,6 @@ export default function InviteForm({
           </label>
         </div>
 
-        <label className="flex items-center gap-2 text-xs text-dim">
-          <input type="checkbox" name="grantsPlatformAdmin" />
-          make this account a platform administrator
-        </label>
 
         {state.error && (
           <p role="alert" className="text-xs text-red-400">

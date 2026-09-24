@@ -9,6 +9,7 @@ import {
   revokeInvitation,
 } from "@/lib/auth/invitations";
 import type { Role } from "@/generated/prisma/enums";
+import { grantAdmin, revokeAdmin } from "@/lib/auth/admins";
 
 export type InviteState = { url?: string; error?: string };
 
@@ -26,7 +27,6 @@ export async function createInviteAction(
   const email = String(formData.get("email") ?? "").trim();
   const projectSlug = String(formData.get("projectSlug") ?? "");
   const role = String(formData.get("role") ?? "COLLABORATOR") as Role;
-  const grantsPlatformAdmin = formData.get("grantsPlatformAdmin") === "on";
   const ttlDays = Number(formData.get("ttlDays") ?? 14);
 
   if (!["OWNER", "COLLABORATOR", "VIEWER"].includes(role)) {
@@ -48,7 +48,6 @@ export async function createInviteAction(
     email: email || null,
     projectId,
     role,
-    grantsPlatformAdmin,
     ttlDays: Number.isFinite(ttlDays) && ttlDays > 0 ? ttlDays : 14,
   });
 
@@ -62,4 +61,27 @@ export async function revokeInviteAction(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (id) await revokeInvitation(id);
   revalidatePath("/admin/invitations");
+}
+
+export type AdminState = { message?: string; error?: string };
+
+/** Promote an existing account. Re-checks admin itself — this is a POST endpoint. */
+export async function grantAdminAction(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  await requirePlatformAdmin();
+  const result = await grantAdmin(String(formData.get("email") ?? ""));
+  revalidatePath("/admin/invitations");
+  return result.ok ? { message: result.message } : { error: result.error };
+}
+
+export async function revokeAdminAction(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const actor = await requirePlatformAdmin();
+  const result = await revokeAdmin(String(formData.get("userId") ?? ""), actor.id);
+  revalidatePath("/admin/invitations");
+  return result.ok ? { message: result.message } : { error: result.error };
 }

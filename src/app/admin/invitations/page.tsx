@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth/dal";
 import { revokeInviteAction } from "./actions";
 import InviteForm from "./form";
+import AdminsSection from "./admins-section";
+import { listAdmins } from "@/lib/auth/admins";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +20,9 @@ function status(i: {
 }
 
 export default async function InvitationsPage() {
-  await requirePlatformAdmin();
+  const me = await requirePlatformAdmin();
 
-  const [projects, invitations] = await Promise.all([
+  const [projects, invitations, admins] = await Promise.all([
     db.project.findMany({
       select: { slug: true, name: true },
       orderBy: { createdAt: "asc" },
@@ -33,15 +35,16 @@ export default async function InvitationsPage() {
         acceptedBy: { select: { email: true } },
       },
     }),
+    listAdmins(),
   ]);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-8 bg-void p-8 text-paper">
       <header className="flex items-baseline justify-between">
         <div>
-          <h1 className="text-sm">Invitations</h1>
+          <h1 className="text-sm">People</h1>
           <p className="text-xs text-dim">
-            Accounts are created only from these links.
+            Administrators, and the invitation links accounts are created from.
           </p>
         </div>
         <Link
@@ -52,7 +55,18 @@ export default async function InvitationsPage() {
         </Link>
       </header>
 
-      <InviteForm projects={projects} />
+      <AdminsSection
+        admins={admins.map((a) => ({
+          id: a.id,
+          label: a.displayName ? `${a.displayName} · ${a.email}` : a.email,
+          isYou: a.id === me.id,
+        }))}
+      />
+
+      <section className="flex flex-col gap-4 border-t border-paper/10 pt-6">
+        <h2 className="text-xs text-dim">invite someone new</h2>
+        <InviteForm projects={projects} />
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-xs text-dim">recent</h2>
@@ -71,7 +85,6 @@ export default async function InvitationsPage() {
                     <p className="truncate text-paper/80">
                       {i.email ?? "any address"}
                       {i.project && ` → ${i.project.slug}`}
-                      {i.grantsPlatformAdmin && " · admin"}
                     </p>
                     <p className="text-dim">
                       {i.role.toLowerCase()} · {state}

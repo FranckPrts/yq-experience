@@ -6,7 +6,6 @@
  *
  *   npm run invite -- --by you@example.com --email them@example.com
  *   npm run invite -- --by you@example.com --project fish-school-pw-2026 --role OWNER
- *   npm run invite -- --by you@example.com --admin
  *
  * `--by` must be a platform admin: this CLI does not let someone hand out
  * standing they do not have.
@@ -21,13 +20,12 @@ function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i === -1 ? undefined : process.argv[i + 1];
 }
-const flag = (name: string) => process.argv.includes(`--${name}`);
 
 async function main() {
   const by = arg("by")?.trim().toLowerCase();
   if (!by) {
     console.error(
-      "Required: --by <admin email>  [--email <address>] [--project <slug>] [--role OWNER|COLLABORATOR|VIEWER] [--admin] [--days 14]",
+      "Required: --by <admin email>  [--email <address>] [--project <slug>] [--role OWNER|COLLABORATOR|VIEWER] [--days 14]",
     );
     process.exit(1);
   }
@@ -71,7 +69,6 @@ async function main() {
     email: arg("email") ?? null,
     projectId,
     role,
-    grantsPlatformAdmin: flag("admin"),
     ttlDays: Number.isFinite(days) && days > 0 ? days : 14,
   });
 
@@ -80,7 +77,6 @@ async function main() {
   console.log(
     `    project    ${invitation.project ? `${invitation.project.slug} (${role.toLowerCase()})` : "none"}`,
   );
-  console.log(`    admin      ${invitation.grantsPlatformAdmin}`);
   console.log(`    expires    ${invitation.expiresAt.toISOString().slice(0, 10)}`);
   // Only the hash is stored, so this is the one time the link exists.
   console.log(`\n    ${invitationUrl(token)}\n`);
