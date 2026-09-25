@@ -4,47 +4,39 @@ import { useActionState, useState } from "react";
 import { saveCopy, type AppearanceState } from "./actions";
 import {
   COPY_FIELDS,
-  DEFAULT_COPY,
-  fillCopy,
   type CopyKey,
   type ProjectCopy,
 } from "@/lib/theme/project-copy";
-import type { ProjectLexicon, ProjectTheme } from "@/lib/theme/project-theme";
-import { FONTS } from "@/lib/theme/project-theme";
 
 const GROUPS = Array.from(
   new Set(Object.values(COPY_FIELDS).map((f) => f.group)),
 );
 
 /**
- * Every sentence a participant reads, as plain text. The preview renders each
- * one with the project's own noun and palette, so the placeholders are checked
- * by reading, not by guessing.
+ * Every sentence a participant reads, as plain text. The live preview beside
+ * the form shows each one in place, so the placeholders are checked by reading,
+ * not by guessing.
  */
 export default function CopyForm({
   slug,
   copy,
-  lexicon,
-  theme,
+  onDraft,
 }: {
   slug: string;
   copy: ProjectCopy;
-  lexicon: ProjectLexicon;
-  theme: ProjectTheme;
+  /** Every unsaved change, for the live preview next to the form. */
+  onDraft?: (copy: ProjectCopy) => void;
 }) {
   const [state, action, pending] = useActionState<AppearanceState, FormData>(
     saveCopy,
     {},
   );
-  const [draft, setDraft] = useState<ProjectCopy>(copy);
-  const vars = {
-    noun: lexicon.noun,
-    nounPlural: lexicon.nounPlural,
-    name: "Tide Chorus",
-  };
-
-  const preview = (key: CopyKey) =>
-    fillCopy(draft[key] || DEFAULT_COPY[key], vars);
+  const [draft, setDraftState] = useState<ProjectCopy>(copy);
+  function setDraft(update: (d: ProjectCopy) => ProjectCopy) {
+    const next = update(draft);
+    setDraftState(next);
+    onDraft?.(next);
+  }
 
   return (
     <form action={action} className="flex flex-col gap-8">
@@ -118,66 +110,6 @@ export default function CopyForm({
             })}
         </section>
       ))}
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xs text-dim">
-          preview · named “{vars.name}” where {"{name}"} is used
-        </h2>
-        <div
-          className="flex flex-col gap-6 rounded border border-paper/10 p-5"
-          style={{
-            backgroundColor: theme.void,
-            color: theme.paper,
-            fontFamily: FONTS[theme.font].stack,
-          }}
-        >
-          {draft.introEnabled && (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm">{preview("introTitle")}</p>
-              <p
-                className="whitespace-pre-line text-xs leading-relaxed"
-                style={{ color: theme.dim }}
-              >
-                {preview("introBody")}
-              </p>
-              <span className="text-sm underline underline-offset-4">
-                {preview("introButton")}
-              </span>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-4 text-sm">
-            <span className="text-xs" style={{ color: theme.dim }}>
-              {preview("loading")}
-            </span>
-            <span className="underline underline-offset-4">{preview("nextButton")}</span>
-            <span className="underline underline-offset-4">{preview("saveButton")}</span>
-            <span className="underline underline-offset-4">
-              {preview("saveChangesButton")}
-            </span>
-            <span className="text-xs" style={{ color: theme.dim }}>
-              {preview("backButton")}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-sm">{preview("savedTitle")}</p>
-            <p
-              className="whitespace-pre-line text-xs leading-relaxed"
-              style={{ color: theme.dim }}
-            >
-              {preview("savedBody")}
-            </p>
-            <span className="text-sm underline underline-offset-4">
-              {preview("keepTuningButton")}
-            </span>
-          </div>
-          <p
-            className="whitespace-pre-line text-xs"
-            style={{ color: theme.dim }}
-          >
-            {preview("closedMessage")}
-          </p>
-        </div>
-      </section>
 
       <div className="flex items-center gap-3">
         <button

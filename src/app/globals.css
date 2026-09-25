@@ -6,7 +6,21 @@
   --font-mono: var(--font-geist-mono);
   /* Participant-facing terminal face; admin stays on the Geist pair above. */
   --font-terminal: var(--font-dm-mono);
+}
 
+/*
+ * The palette, deliberately NOT `inline`.
+ *
+ * `inline` compiles each utility to a fixed value — `.text-dim{color:#7f776b}`
+ * — so a project's palette, set as CSS variables on the participant page, never
+ * reached anything styled with a utility class: separators, inactive options,
+ * the canvas backdrop all stayed Nowadays brown whatever the tenant chose.
+ * Without `inline`, utilities compile to `color: var(--color-dim)`, the values
+ * below become the defaults on :root, and a project's variables override them
+ * wherever they are set. Our own pages set nothing, so they look exactly as
+ * before.
+ */
+@theme {
   --color-void: #14100e;
   --color-paper: #ece5d8;
   --color-dim: #7f776b;
@@ -68,7 +82,7 @@ body {
 }
 
 /*
- * Flat slider: a solid bar with a square white handle. --term-track carries
+ * Flat slider: a solid bar with a square handle, in the palette. --term-track carries
  * either the plain fill or, for the color rows, the full hue ramp.
  */
 .term-range {
@@ -82,7 +96,7 @@ body {
 
 .term-range::-webkit-slider-runnable-track {
   height: 0.75rem;
-  background: var(--term-track, #d6d0c6);
+  background: var(--term-track, var(--color-dim));
 }
 
 .term-range::-webkit-slider-thumb {
@@ -93,12 +107,13 @@ body {
   margin-top: -0.25rem;
   border: 2px solid var(--color-void);
   border-radius: 0;
-  background: #fff;
+  /* the handle is what the participant is moving — their colour, not structure */
+  background: var(--color-paper);
 }
 
 .term-range::-moz-range-track {
   height: 0.75rem;
-  background: var(--term-track, #d6d0c6);
+  background: var(--term-track, var(--color-dim));
 }
 
 .term-range::-moz-range-thumb {
@@ -106,7 +121,8 @@ body {
   height: 1.25rem;
   border: 2px solid var(--color-void);
   border-radius: 0;
-  background: #fff;
+  /* the handle is what the participant is moving — their colour, not structure */
+  background: var(--color-paper);
 }
 
 .term-range:focus-visible::-webkit-slider-thumb {

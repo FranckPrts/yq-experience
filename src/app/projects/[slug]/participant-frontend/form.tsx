@@ -12,18 +12,31 @@ export default function AppearanceForm({
   slug,
   theme,
   lexicon,
+  onDraft,
 }: {
   slug: string;
   theme: ProjectTheme;
   lexicon: ProjectLexicon;
+  /** Every unsaved change, for the live preview next to the form. */
+  onDraft?: (theme: ProjectTheme, lexicon: ProjectLexicon) => void;
 }) {
   const [state, action, pending] = useActionState<AppearanceState, FormData>(
     saveAppearance,
     {},
   );
-  // Local mirror purely so the sample previews live before saving.
-  const [preview, setPreview] = useState(theme);
-  const [noun, setNoun] = useState(lexicon.noun);
+  const [draft, setDraftState] = useState(theme);
+  const [words, setWordsState] = useState(lexicon);
+
+  function setDraft(update: (p: ProjectTheme) => ProjectTheme) {
+    const next = update(draft);
+    setDraftState(next);
+    onDraft?.(next, words);
+  }
+  function setWords(update: Partial<ProjectLexicon>) {
+    const next = { ...words, ...update };
+    setWordsState(next);
+    onDraft?.(draft, next);
+  }
 
   const swatch = (key: "void" | "paper" | "dim", label: string, hint: string) => (
     <label className="flex flex-col gap-1">
@@ -34,13 +47,13 @@ export default function AppearanceForm({
         <input
           type="color"
           name={key}
-          value={preview[key]}
+          value={draft[key]}
           onChange={(e) =>
-            setPreview((p) => ({ ...p, [key]: e.target.value.toLowerCase() }))
+            setDraft((p) => ({ ...p, [key]: e.target.value.toLowerCase() }))
           }
           className="h-7 w-10 cursor-pointer border border-paper/20 bg-transparent"
         />
-        <code className="text-[11px] text-dim">{preview[key]}</code>
+        <code className="text-[11px] text-dim">{draft[key]}</code>
       </div>
     </label>
   );
@@ -62,9 +75,9 @@ export default function AppearanceForm({
         <h2 className="text-xs text-dim">typeface</h2>
         <select
           name="font"
-          value={preview.font}
+          value={draft.font}
           onChange={(e) =>
-            setPreview((p) => ({
+            setDraft((p) => ({
               ...p,
               font: e.target.value as ProjectTheme["font"],
             }))
@@ -90,8 +103,8 @@ export default function AppearanceForm({
             <span className="text-xs text-dim">what participants make</span>
             <input
               name="noun"
-              value={noun}
-              onChange={(e) => setNoun(e.target.value)}
+              value={words.noun}
+              onChange={(e) => setWords({ noun: e.target.value })}
               className="term-input border-b border-paper/20"
             />
           </label>
@@ -99,7 +112,8 @@ export default function AppearanceForm({
             <span className="text-xs text-dim">plural</span>
             <input
               name="nounPlural"
-              defaultValue={lexicon.nounPlural}
+              value={words.nounPlural}
+              onChange={(e) => setWords({ nounPlural: e.target.value })}
               className="term-input border-b border-paper/20"
             />
           </label>
@@ -109,27 +123,6 @@ export default function AppearanceForm({
           belongs to the project rather than the script, so changing it never
           means editing delivered code.
         </p>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xs text-dim">preview</h2>
-        <div
-          className="rounded border border-paper/10 p-5"
-          style={{
-            backgroundColor: preview.void,
-            fontFamily: FONTS[preview.font].stack,
-          }}
-        >
-          <p className="text-sm" style={{ color: preview.paper }}>
-            Name your {noun || "avatar"}
-          </p>
-          <p className="mt-1 text-xs" style={{ color: preview.dim }}>
-            core_size : |————————|
-          </p>
-          <p className="mt-3 text-xs" style={{ color: preview.dim }}>
-            Tune it, then save. Your {noun || "avatar"} joins the others.
-          </p>
-        </div>
       </section>
 
       <div className="flex items-center gap-3">

@@ -20,7 +20,7 @@ import {
 } from "@/lib/theme/project-theme";
 import { fillCopy, type ProjectCopy } from "@/lib/theme/project-copy";
 
-type Step = "intro" | "questions" | "tune" | "done";
+export type Step = "intro" | "questions" | "tune" | "done";
 
 /**
  * The participant runtime — `PlanetEditor` generalized.
@@ -40,6 +40,9 @@ export default function ParticipantExperience({
   scriptVersion,
   parameters,
   copy,
+  preview = false,
+  step: stepProp,
+  onStepChange,
 }: {
   projectName: string;
   theme: ProjectTheme;
@@ -50,6 +53,15 @@ export default function ParticipantExperience({
   scriptVersion: number;
   parameters: Parameter[];
   copy: ProjectCopy;
+  /**
+   * The participant-frontend preview: the same page, with no anonymous sign-in
+   * and a save that writes nothing, so a tenant can walk through it without
+   * leaving participants — or rows — behind in their Supabase.
+   */
+  preview?: boolean;
+  /** Controlled step, for the preview's screen tabs. */
+  step?: Step;
+  onStepChange?: (step: Step) => void;
 }) {
   const questions = useMemo(
     () => parameters.filter((p) => p.type === "text"),
@@ -62,12 +74,17 @@ export default function ParticipantExperience({
   const firstStep: Step = questions.length > 0 ? "questions" : "tune";
   // Returning participants skip the welcome: the effect below moves them
   // straight to tuning once their avatar is found.
-  const [step, setStep] = useState<Step>(
+  const [ownStep, setOwnStep] = useState<Step>(
     copy.introEnabled ? "intro" : firstStep,
   );
+  const step = stepProp ?? ownStep;
+  function setStep(next: Step) {
+    setOwnStep(next);
+    onStepChange?.(next);
+  }
   const [avatarId, setAvatarId] = useState<string | null>(null);
   const [status, setStatus] = useState<"starting" | "ready" | "error">(
-    "starting",
+    preview ? "ready" : "starting",
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -76,6 +93,7 @@ export default function ParticipantExperience({
   // Sign in anonymously, then adopt any avatar this identity already made — so
   // returning to the experience continues rather than starts again.
   useEffect(() => {
+    if (preview) return;
     let cancelled = false;
 
     async function start() {
@@ -110,7 +128,9 @@ export default function ParticipantExperience({
     return () => {
       cancelled = true;
     };
-  }, [supabaseUrl, publishableKey, parameters]);
+    // `setStep` is recreated each render but only ever sets state and reports.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preview, supabaseUrl, publishableKey, parameters]);
 
   const sketchParams = useMemo(
     () => renderValues(parameters, values),
@@ -122,6 +142,13 @@ export default function ParticipantExperience({
   }
 
   async function save() {
+    if (preview) {
+      // Walk on as if it saved; the id only switches the button to "save
+      // changes", exactly as a real first save would.
+      setAvatarId("preview");
+      setStep("done");
+      return;
+    }
     const client = clientRef.current;
     if (!client) return;
     setSaving(true);
@@ -167,10 +194,16 @@ export default function ParticipantExperience({
   } as React.CSSProperties;
 
   return (
-    <main style={style} className="flex min-h-screen flex-col">
+    // Side by side from tablet width up: the avatar fills the left, the
+    // controls sit in a column on the right, so tuning never scrolls the
+    // avatar out of view. Stacked on a phone, where there is no room for both.
+    <main
+      style={style}
+      className="flex min-h-screen flex-col md:h-screen md:flex-row md:overflow-hidden"
+    >
       {/* Mounted once for the life of the page. Re-mounting between steps would
           restart the sketch, and the avatar would blink rather than persist. */}
-      <div className="relative h-[45vh] w-full shrink-0 md:h-[55vh]">
+      <div className="relative h-[45vh] w-full shrink-0 md:h-full md:w-auto md:flex-1">
         <AvatarCanvas
           key={scriptVersion}
           code={code}
@@ -190,7 +223,10 @@ export default function ParticipantExperience({
         )}
       </div>
 
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-6">
+      <div className="flex w-full flex-1 flex-col md:h-full md:w-[28rem] md:flex-none md:overflow-y-auto md:border-l md:border-dim/20">
+        {/* `my-auto` centres short steps (welcome, questions) and falls back to
+            the top when the controls overflow, so nothing is ever clipped. */}
+        <div className="mx-auto flex w-full max-w-md flex-col gap-6 p-6 md:my-auto">
         {status === "error" && (
           <div className="flex flex-col gap-2">
             <p className="text-sm">This experience can’t start right now.</p>
@@ -307,6 +343,7 @@ export default function ParticipantExperience({
             </button>
           </div>
         )}
+        </div>
       </div>
     </main>
   );

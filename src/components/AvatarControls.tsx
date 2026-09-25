@@ -52,37 +52,23 @@ function hueTrack(param: NumericParameter): string {
 }
 
 /**
- * The avatar's own colour, lightened enough to read as text on the void, so the
- * chrome belongs to the thing it controls. Taken from the first hue parameter
- * the script declares; scripts with no hue keep the default ink.
+ * `label : <control>`. Labels and separators are the project's secondary
+ * colour — structure — and what the participant chose is in its text colour.
  */
-function inkColor(parameters: Parameter[], values: ParamValues): string {
-  const hue = parameters.find((p) => isNumeric(p) && p.display === "hue");
-  if (!hue || !isNumeric(hue)) return "var(--color-paper)";
-  return hueToCss(hue, Number(values[hue.name] ?? hue.default), 58, 78);
-}
-
-/** `label : <control>`, with the label tinted by the avatar it belongs to. */
 function Row({
   label,
-  ink,
   muted = false,
   children,
 }: {
   label: string;
-  ink: string;
   /** Gated by a toggle that is currently off — shown, but out of reach. */
   muted?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className={`flex items-center gap-2 py-1.5 ${muted ? "opacity-40" : ""}`}>
-      <span className="w-[11ch] shrink-0 text-sm" style={{ color: ink }}>
-        {label}
-      </span>
-      <span className="shrink-0 text-sm" style={{ color: ink }}>
-        :
-      </span>
+      <span className="w-[11ch] shrink-0 text-sm text-dim">{label}</span>
+      <span className="shrink-0 text-sm text-dim">:</span>
       <div className="flex min-w-0 flex-1 items-center gap-2 pl-2">
         {children}
       </div>
@@ -111,7 +97,6 @@ export default function AvatarControls({
   includeText = false,
   advancedOpen = false,
 }: AvatarControlsProps) {
-  const ink = inkColor(parameters, values);
   const rows = parameters.filter((p) => includeText || p.type !== "text");
   // Two tiers, each keeping declaration order within itself.
   const plain = rows.filter((p) => !p.advanced);
@@ -128,8 +113,8 @@ export default function AvatarControls({
       // the control cannot even reach a value coercion would reject.
       const range = effectiveRange(param);
       return (
-        <Row key={param.name} label={param.label} ink={ink} muted={!enabled}>
-          <span className="text-paper/60">|</span>
+        <Row key={param.name} label={param.label} muted={!enabled}>
+          <span className="text-dim">|</span>
           <input
             type="range"
             aria-label={param.label}
@@ -146,7 +131,7 @@ export default function AvatarControls({
                 : undefined
             }
           />
-          <span className="text-paper/60">|</span>
+          <span className="text-dim">|</span>
         </Row>
       );
     }
@@ -154,7 +139,7 @@ export default function AvatarControls({
     if (param.type === "toggle") {
       const on = value !== false;
       return (
-        <Row key={param.name} label={param.label} ink={ink} muted={!enabled}>
+        <Row key={param.name} label={param.label} muted={!enabled}>
           <button
             type="button"
             role="switch"
@@ -179,7 +164,7 @@ export default function AvatarControls({
       const atMax =
         param.maxSelected != null && chosen.length >= param.maxSelected;
       return (
-        <Row key={param.name} label={param.label} ink={ink} muted={!enabled}>
+        <Row key={param.name} label={param.label} muted={!enabled}>
           <div
             role="group"
             aria-label={param.label}
@@ -227,7 +212,7 @@ export default function AvatarControls({
 
     if (param.type === "select") {
       return (
-        <Row key={param.name} label={param.label} ink={ink} muted={!enabled}>
+        <Row key={param.name} label={param.label} muted={!enabled}>
           <div role="radiogroup" aria-label={param.label} className="flex gap-6">
             {param.options.map((option) => {
               const active = value === option.value;
@@ -255,7 +240,7 @@ export default function AvatarControls({
     }
 
     return (
-      <Row key={param.name} label={param.label} ink={ink} muted={!enabled}>
+      <Row key={param.name} label={param.label} muted={!enabled}>
         <input
           type="text"
           aria-label={param.label}
@@ -279,10 +264,7 @@ export default function AvatarControls({
           open={advancedOpen}
           className="mt-2 border-t border-paper/10 pt-2"
         >
-          <summary
-            className="cursor-pointer text-xs opacity-60 hover:opacity-100"
-            style={{ color: ink }}
-          >
+          <summary className="cursor-pointer text-xs text-dim hover:text-paper">
             additional parameters
           </summary>
           <div className="flex flex-col gap-1 pt-1">

@@ -23,6 +23,13 @@ export type ProjectTheme = {
 };
 
 export const FONTS = {
+  // Served by next/font from our own origin (loaded once in the root layout),
+  // so it is genuinely hosted by us rather than fetched from a third party at
+  // view time. The face the CCN / Nowadays experience actually shipped with.
+  dmMono: {
+    label: "DM Mono (Nowadays)",
+    stack: "var(--font-dm-mono), ui-monospace, SFMono-Regular, Menlo, monospace",
+  },
   mono: {
     label: "Terminal mono",
     stack: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
@@ -39,12 +46,16 @@ export const FONTS = {
 
 export type FontKey = keyof typeof FONTS;
 
-/** The Nowadays palette — what the CCN experience shipped with. */
+/**
+ * The Nowadays palette and face — what the CCN experience shipped with, so a
+ * project nobody has styled looks like the original. Projects that already
+ * saved a font keep it; only an unset one picks this up.
+ */
 export const DEFAULT_THEME: ProjectTheme = {
   void: "#14100e",
   paper: "#ece5d8",
   dim: "#7f776b",
-  font: "mono",
+  font: "dmMono",
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -87,7 +98,6 @@ export function themeCssVars(theme: ProjectTheme): Record<string, string> {
     "--color-void": theme.void,
     "--color-paper": theme.paper,
     "--color-dim": theme.dim,
-    "--font-project": FONTS[theme.font].stack,
   };
 }
 

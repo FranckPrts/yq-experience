@@ -1,14 +1,10 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import {
-  coerceLexicon,
-  coerceTheme,
-  FONTS,
-  themeCssVars,
-} from "@/lib/theme/project-theme";
+import { coerceLexicon, coerceTheme } from "@/lib/theme/project-theme";
 import { validateParameters } from "@/lib/params/validate";
 import type { Parameter } from "@/lib/params/types";
 import ParticipantExperience from "./experience";
+import Shut from "./shut";
 import { coerceCopy, fillCopy } from "@/lib/theme/project-copy";
 
 /**
@@ -22,35 +18,6 @@ import { coerceCopy, fillCopy } from "@/lib/theme/project-copy";
  */
 
 export const dynamic = "force-dynamic";
-
-function Shut({
-  theme,
-  title,
-  message,
-}: {
-  theme: ReturnType<typeof coerceTheme>;
-  title: string;
-  message: string;
-}) {
-  return (
-    <main
-      style={{
-        ...themeCssVars(theme),
-        backgroundColor: theme.void,
-        color: theme.paper,
-        fontFamily: FONTS[theme.font].stack,
-      }}
-      className="flex min-h-screen items-center justify-center p-8"
-    >
-      <div className="max-w-sm">
-        <h1 className="text-sm">{title}</h1>
-        <p className="mt-2 whitespace-pre-line text-xs" style={{ color: theme.dim }}>
-          {message}
-        </p>
-      </div>
-    </main>
-  );
-}
 
 export default async function ExperiencePage({
   params,

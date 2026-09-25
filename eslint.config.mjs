@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // p5 scenes pasted into YouQuantified, not app code: they define
+    // setup/draw/windowResized for p5 to call, which reads as "unused" here.
+    "scenes/**",
   ]),
 ]);
 
