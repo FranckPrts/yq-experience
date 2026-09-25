@@ -25,6 +25,11 @@ export const SECTIONS = [
     label: "database",
     href: (slug: string) => `/projects/${slug}/database`,
   },
+  {
+    key: "console",
+    label: "live console",
+    href: (slug: string) => `/projects/${slug}/console`,
+  },
 ] as const;
 
 export type SectionKey = (typeof SECTIONS)[number]["key"] | "overview";
